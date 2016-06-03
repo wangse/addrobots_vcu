@@ -1,4 +1,4 @@
-# addrobot_vcu
+# addrobots_vcu
 
 ## An Android-based program that allows cloud control of the robotic vehicle. 
 
