@@ -1,0 +1,8 @@
+<resources>
+	<string name="app_name">VehicleControl</string>
+	<string name="usb_test_button">Test Button</string>
+	<string name="usb_connect_button">Connect Button</string>
+	<string name="usb_send_button">Send</string>
+	<string name="usb_info_textview">Usb Device Info</string>
+	<string name="usb_session_textview">Log Session/n/n</string>
+</resources>

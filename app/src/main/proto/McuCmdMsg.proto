@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package com.addrobots.protobuf;
+option java_package = "com.addrobots.protobuf";
+
+message MotorCmd {
+	int32 num = 1;
+	int32 dir = 2;
+	double degSec = 3;
+	double aDegSec = 4;
+}
+
+message SensorCmd {
+	string name = 1;
+	double value = 2;
+	string unit = 3;
+}
+
+message McuWrapperMessage {
+	oneof msg {
+		MotorCmd motorCmd = 1;
+		SensorCmd sensorCmd = 2;
+	}
+}
