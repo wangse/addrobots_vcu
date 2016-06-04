@@ -47,7 +47,9 @@ public class VcuActivity extends AppCompatActivity {
 	Button connectButton;
 	Button sendButton;
 	TextView usbDeviceInfoText;
-	TextView usbSessionText;
+	TextView sensorXText;
+	TextView sensorYText;
+	TextView sensorQText;
 	UsbDevice device;
 	//UsbManager manager;
 	UsbCommunicationManager usbManager;
@@ -61,7 +63,9 @@ public class VcuActivity extends AppCompatActivity {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_vcu);
 		usbDeviceInfoText = (TextView) findViewById(R.id.usb_info_textview);
-		usbSessionText = (TextView) findViewById(R.id.usb_session_textview);
+		sensorXText = (TextView) findViewById(R.id.sensor_x_textview);
+		sensorYText = (TextView) findViewById(R.id.sensor_y_textview);
+		sensorQText = (TextView) findViewById(R.id.sensor_q_textview);
 
 		testButton = (Button) findViewById(R.id.usb_test_button);
 		testButton.setOnClickListener(new View.OnClickListener() {
@@ -118,7 +122,22 @@ public class VcuActivity extends AppCompatActivity {
 									@Override
 									public void run() {
 										pidController.processMcuMessage(mcuCmd);
-										usbSessionText.append("\n" + mcuCmd.toString());
+										switch (mcuCmd.getMsgCase()) {
+											case McuCmdMsg.McuWrapperMessage.MOTORCMD_FIELD_NUMBER:
+												break;
+											case McuCmdMsg.McuWrapperMessage.SENSORCMD_FIELD_NUMBER:
+												if (mcuCmd.hasSensorCmd()) {
+													McuCmdMsg.SensorCmd sensorCmd = mcuCmd.getSensorCmd();
+													if (sensorCmd.name.equals("OFX")) {
+														sensorXText.setText("\n" + mcuCmd.toString());
+													} else if (sensorCmd.name.equals("OFY")) {
+														sensorYText.setText("\n" + mcuCmd.toString());
+													} else if (sensorCmd.name.equals("OFQ")) {
+														sensorQText.setText("\n" + mcuCmd.toString());
+													}
+												}
+												break;
+										}
 									}
 
 								});

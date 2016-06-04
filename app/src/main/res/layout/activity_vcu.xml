@@ -53,19 +53,49 @@
 	</ScrollView>
 
 	<ScrollView
-		android:id="@+id/usb_session_scrollview"
+		android:id="@+id/sensor_x_scrollview"
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
-		android:layout_columnSpan="2"
-		android:layout_rowSpan="15"
+		android:layout_columnSpan="1"
+		android:layout_rowSpan="4"
 		android:scrollbars="vertical"
 		android:layout_column="3">
 
 		<TextView
-			android:id="@+id/usb_session_textview"
+			android:id="@+id/sensor_x_textview"
 			android:layout_width="match_parent"
 			android:layout_height="match_parent"
-			android:text="@string/usb_session_textview"/>
+			android:text="@string/sensor_x_textview"/>
+	</ScrollView>
+	<ScrollView
+		android:id="@+id/sensor_y_scrollview"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_columnSpan="1"
+		android:layout_rowSpan="4"
+		android:scrollbars="vertical"
+		android:layout_column="4">
+
+		<TextView
+			android:id="@+id/sensor_y_textview"
+			android:layout_width="match_parent"
+			android:layout_height="match_parent"
+			android:text="@string/sensor_y_textview"/>
+	</ScrollView>
+	<ScrollView
+		android:id="@+id/sensor_q_scrollview"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_columnSpan="1"
+		android:layout_rowSpan="4"
+		android:scrollbars="vertical"
+		android:layout_column="5">
+
+		<TextView
+			android:id="@+id/sensor_q_textview"
+			android:layout_width="match_parent"
+			android:layout_height="match_parent"
+			android:text="@string/sensor_q_textview"/>
 
 	</ScrollView>
 </GridLayout>

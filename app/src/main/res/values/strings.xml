@@ -4,5 +4,7 @@
 	<string name="usb_connect_button">Connect Button</string>
 	<string name="usb_send_button">Send</string>
 	<string name="usb_info_textview">Usb Device Info</string>
-	<string name="usb_session_textview">Log Session/n/n</string>
+	<string name="sensor_x_textview">X</string>
+	<string name="sensor_y_textview">Y</string>
+	<string name="sensor_q_textview">Q</string>
 </resources>

@@ -224,10 +224,11 @@ public class UsbCommunicationManager {
 	private byte readByte() {
 		if (recvBufferOffset == recvBufferSize) {
 			// wait for some data from the mcu
+			recvBufferOffset = 0;
+			recvBufferSize = 0;
 			while (recvBufferSize < 1) {
 				recvBufferSize = connection.bulkTransfer(input, recvBuffer, recvBufferOffset, recvBuffer.length - recvBufferOffset, 3000);
 			}
-			recvBufferOffset = 0;
 		}
 
 		return recvBuffer[recvBufferOffset++];
