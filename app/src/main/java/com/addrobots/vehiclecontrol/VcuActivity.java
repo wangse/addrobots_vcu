@@ -42,19 +42,20 @@ import java.io.FileInputStream;
 
 public class VcuActivity extends AppCompatActivity {
 
-	PendingIntent mPermissionIntent;
-	Button testButton;
-	Button connectButton;
-	Button sendButton;
-	TextView usbDeviceInfoText;
-	TextView sensorXText;
-	TextView sensorYText;
-	TextView sensorQText;
-	UsbDevice device;
-	//UsbManager manager;
-	UsbCommunicationManager usbManager;
-	Thread usbThread;
-	PidController pidController;
+	private PendingIntent mPermissionIntent;
+	private Button testButton;
+	private Button connectButton;
+	private Button sendButton;
+	private TextView usbDeviceInfoText;
+	private TextView sensorXText;
+	private TextView sensorYText;
+	private TextView sensorQText;
+	private UsbDevice device;
+	//private UsbManager manager;
+	private UsbCommunicationManager usbManager;
+	private Thread usbThread;
+	private PidController pidController;
+	private int messagesRcvd;
 
 	private static final String ACTION_USB_PERMISSION = "com.addrobots.vehiclecontrol.USB_PERMISSION";
 
@@ -117,6 +118,7 @@ public class VcuActivity extends AppCompatActivity {
 						frameBytes = usbManager.receiveFrame();
 						if (frameBytes.length > 0) {
 							try {
+								messagesRcvd++;
 								final McuCmdMsg.McuWrapperMessage mcuCmd = McuCmdMsg.McuWrapperMessage.parseFrom(frameBytes);
 								runOnUiThread(new Runnable() {
 									@Override
@@ -126,14 +128,19 @@ public class VcuActivity extends AppCompatActivity {
 											case McuCmdMsg.McuWrapperMessage.MOTORCMD_FIELD_NUMBER:
 												break;
 											case McuCmdMsg.McuWrapperMessage.SENSORCMD_FIELD_NUMBER:
+												if ((messagesRcvd % 90) == 0) {
+													sensorXText.setText("");
+													sensorYText.setText("");
+													sensorQText.setText("");
+												}
 												if (mcuCmd.hasSensorCmd()) {
 													McuCmdMsg.SensorCmd sensorCmd = mcuCmd.getSensorCmd();
 													if (sensorCmd.name.equals("OFX")) {
-														sensorXText.setText("\n" + mcuCmd.toString());
+														sensorXText.append("\n" + sensorCmd.value);
 													} else if (sensorCmd.name.equals("OFY")) {
-														sensorYText.setText("\n" + mcuCmd.toString());
+														sensorYText.append("\n" + sensorCmd.value);
 													} else if (sensorCmd.name.equals("OFQ")) {
-														sensorQText.setText("\n" + mcuCmd.toString());
+														sensorQText.append("\n" + sensorCmd.value);
 													}
 												}
 												break;
@@ -146,11 +153,11 @@ public class VcuActivity extends AppCompatActivity {
 							}
 						}
 
-						try {
-							Thread.sleep(300);
-						} catch (InterruptedException e) {
-							e.printStackTrace();
-						}
+//						try {
+//							Thread.sleep(1);
+//						} catch (InterruptedException e) {
+//							e.printStackTrace();
+//						}
 					}
 				}
 			};

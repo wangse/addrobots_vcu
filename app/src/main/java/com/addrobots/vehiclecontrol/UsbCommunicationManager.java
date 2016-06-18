@@ -324,7 +324,7 @@ public class UsbCommunicationManager {
 						connection = usbManager.openDevice(usbDevice);
 						connection.claimInterface(intf, true);
 
-						// set flow control to 8N1 at 9600 baud
+						// set flow control to 8N1 at 115200 baud
 						int baudRate = 115200;
 						byte stopBitsByte = 1;
 						byte parityBitesByte = 0;

@@ -4,5 +4,5 @@
 	<!-- 0x2504 / 0x0300: AddRobots MCU -->
 	<usb-device
 		product-id="1"
-		vendor-id="9205"/>
+		vendor-id="9025"/>
 </resources>
