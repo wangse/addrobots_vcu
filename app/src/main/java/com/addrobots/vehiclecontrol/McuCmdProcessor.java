@@ -27,65 +27,39 @@
 package com.addrobots.vehiclecontrol;
 
 import com.addrobots.protobuf.McuCmdMsg;
-import com.google.protobuf.nano.InvalidProtocolBufferNanoException;
+import com.addrobots.protobuf.VcuCmdMsg;
 
-/**
- *
- */
-public class McuCommandHandler {
+public class McuCmdProcessor {
 
-	private static final String TAG = "VcuActivity";
+	private static final String TAG = "McuCmdProcessor";
 
-	private UsbProcessor usbProcessor;
 	private PidController pidController;
 	private VcuActivity vcuActivity;
 	private int messagesRcvd;
-	private Boolean commandTaskRunning = false;
 
-	public McuCommandHandler(PidController pidController, UsbProcessor usbProcessor, VcuActivity vcuActivity) {
+	public McuCmdProcessor(PidController pidController, VcuActivity vcuActivity) {
 		this.pidController = pidController;
-		this.usbProcessor = usbProcessor;
 		this.vcuActivity = vcuActivity;
+
+		VcuCmdMsg.VcuWrapperMessage cmd = new VcuCmdMsg.VcuWrapperMessage();
+		VcuCmdMsg.Drive drive = new VcuCmdMsg.Drive();
+		drive.acceleration = 0.5;
+		drive.distance = 5.0;
+		drive.velocity = 0.5;
+		cmd.setDrive(drive);
+		pidController.processVcuCommand(cmd);
 	}
 
-	public Boolean isCommandTaskRunning() {
-		return commandTaskRunning;
-	}
-
-	public void startCommandTask() {
-		if (commandTaskRunning == false) {
-			commandTaskRunning = true;
-			Thread usbThread = new Thread("USB frame processor") {
-				public void run() {
-					byte frameBytes[];
-					while (commandTaskRunning) {
-						frameBytes = usbProcessor.receiveFrame();
-						if (frameBytes.length > 0) {
-							messagesRcvd++;
-							try {
-								final McuCmdMsg.McuWrapperMessage mcuCmd = McuCmdMsg.McuWrapperMessage.parseFrom(frameBytes);
-								processCommand(mcuCmd);
-							} catch (InvalidProtocolBufferNanoException e) {
-								e.printStackTrace();
-							}
-						}
-					}
-				}
-			};
-			usbThread.start();
-		}
-	}
-
-	public void stopCommandTask() {
-		commandTaskRunning = false;
-	}
-
-	private void processCommand(McuCmdMsg.McuWrapperMessage mcuCmd) {
-		pidController.processMcuMessage(mcuCmd);
+	public Boolean processCommand(McuCmdMsg.McuWrapperMessage mcuCmd) {
+		Boolean result = false;
+		messagesRcvd++;
+		pidController.processMcuCommand(mcuCmd);
 		switch (mcuCmd.getMsgCase()) {
 			case McuCmdMsg.McuWrapperMessage.MOTORCMD_FIELD_NUMBER:
+				result = true;
 				break;
 			case McuCmdMsg.McuWrapperMessage.SENSORCMD_FIELD_NUMBER:
+				result = true;
 				if ((messagesRcvd % 90) == 0) {
 					vcuActivity.xSensorClear();
 					vcuActivity.ySensorClear();
@@ -103,7 +77,7 @@ public class McuCommandHandler {
 				}
 				break;
 		}
+		return result;
 	}
-
 }
 

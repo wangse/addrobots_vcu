@@ -26,8 +26,7 @@
 */
 package com.addrobots.vehiclecontrol;
 
-import android.content.Context;
-import android.os.Bundle;
+import com.addrobots.protobuf.McuCmdMsg;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -37,7 +36,7 @@ import org.mockito.runners.MockitoJUnitRunner;
 import static org.junit.Assert.*;
 
 @RunWith(MockitoJUnitRunner.class)
-public class McuCommandHandlerTest {
+public class McuCmdProcessorTest {
 
 	@Mock
 	PidController pidController;
@@ -48,10 +47,11 @@ public class McuCommandHandlerTest {
 
 	@Test
 	public void testCommandProcessor() throws Exception {
-		McuCommandHandler mcuCommandHandler = new McuCommandHandler(pidController, usbProcessor, vcuActivity);
-		mcuCommandHandler.startCommandTask();
-		assertTrue(mcuCommandHandler.isCommandTaskRunning());
-		mcuCommandHandler.stopCommandTask();
-		assertFalse(mcuCommandHandler.isCommandTaskRunning());
+		McuCmdProcessor mcuCmdProcessor = new McuCmdProcessor(pidController, vcuActivity);
+
+		// Test a "drive" command from raw bytes.
+		byte[] cmdBytes = {0x0A, 0x2D, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, (byte) 0xF8, 0x3F, 0x12, 0x03, 0x46, 0x57, 0x44, 0x19, (byte) 0x9A, (byte) 0x99, (byte) 0x99, (byte) 0x99, (byte) 0x99, (byte) 0x99, (byte) 0x99, 0x3F, 0x21, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, (byte) 0xF0, 0x3F, 0x29, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x32, 0x00, 0x08, 0x01};
+		McuCmdMsg.McuWrapperMessage mcuCmd = McuCmdMsg.McuWrapperMessage.parseFrom(cmdBytes);
+		assertTrue(mcuCmdProcessor.processCommand(mcuCmd));
 	}
 }

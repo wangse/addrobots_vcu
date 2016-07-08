@@ -33,11 +33,11 @@ public class PidController {
 
 	VcuCmdMsg.VcuWrapperMessage currentVcuCommand;
 
-	public void setCurrentVcuCommand(VcuCmdMsg.VcuWrapperMessage vcuCmd) {
+	public void processVcuCommand(VcuCmdMsg.VcuWrapperMessage vcuCmd) {
 		currentVcuCommand = vcuCmd;
 	}
 
-	public void processMcuMessage(McuCmdMsg.McuWrapperMessage mcuMessage) {
+	public void processMcuCommand(McuCmdMsg.McuWrapperMessage mcuMessage) {
 
 		switch (mcuMessage.getMsgCase()) {
 			case McuCmdMsg.McuWrapperMessage.MOTORCMD_FIELD_NUMBER:

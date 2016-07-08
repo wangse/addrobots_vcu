@@ -37,22 +37,23 @@ import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
 import android.hardware.usb.UsbManager;
-import android.hardware.usb.UsbRequest;
 import android.util.Log;
 
+import com.addrobots.protobuf.McuCmdMsg;
+import com.google.protobuf.nano.InvalidProtocolBufferNanoException;
+
 import java.io.ByteArrayOutputStream;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 
 public class UsbProcessor {
+
 	static final String ACTION_USB_PERMISSION = "com.android.example.USB_PERMISSION";
 
+	private static final String TAG = "McuCmdProcessor";
 	private static final int USB_RECIP_INTERFACE = 0x01;
 	private static final int USB_RT_ACM = UsbConstants.USB_TYPE_CLASS | USB_RECIP_INTERFACE;
-
 	private static final int SET_LINE_CODING = 0x20;  // USB CDC 1.1 section 6.2
-
 	private static final int MAX_FRAME_BYTES = 256;
 
 	private static final byte END = (byte) 0xC0;                        //0300; /* indicates end of packet */
@@ -60,7 +61,8 @@ public class UsbProcessor {
 	private static final byte ESC_END = (byte) 0xDC;                        //0334; /* ESC ESC_END means END data byte */
 	private static final byte ESC_ESC = (byte) 0xDD;                        //0335; /* ESC ESC_ESC means ESC data byte */
 
-	private Boolean shouldRun = Boolean.FALSE;
+	private Boolean isConnected = false;
+	private Boolean isCmdTaskRunning = false;
 	private UsbManager usbManager;
 	private UsbDevice usbDevice;
 	private UsbInterface intf = null;
@@ -82,11 +84,13 @@ public class UsbProcessor {
 		context.registerReceiver(usbReceiver, filter);
 	}
 
-	public void connect() {
+	public Boolean connect() {
+		Boolean result = true;
 		// check if there's a connected usb device
-		if (usbManager.getDeviceList().isEmpty()) {
+		if ((usbManager == null) || (usbManager.getDeviceList() == null) || (usbManager.getDeviceList().isEmpty())) {
 			Log.d("USB", "No connected devices");
-			return;
+			result = false;
+			return result;
 		}
 
 		// get the first (only) connected device
@@ -95,12 +99,51 @@ public class UsbProcessor {
 		// user must approve of connection
 		usbManager.requestPermission(usbDevice, permissionIntent);
 
-		shouldRun = true;
+		isConnected = true;
+		return result;
 	}
 
-	public void stop() {
-		shouldRun = false;
+	public void disconnect() {
+		isConnected = false;
 		context.unregisterReceiver(usbReceiver);
+	}
+
+	public Boolean isConnected() {
+		return isConnected;
+	}
+
+	public Boolean isCommandTaskRunning() {
+		return isCmdTaskRunning;
+	}
+
+	public void startCommandTask(final McuCmdProcessor mcuCmdProcessor) {
+		if (isCmdTaskRunning == false) {
+			isCmdTaskRunning = true;
+			Thread usbThread = new Thread("USB frame processor") {
+				public void run() {
+					byte frameBytes[];
+					while (isCmdTaskRunning) {
+						frameBytes = receiveFrame();
+						if (frameBytes.length > 0) {
+							try {
+								McuCmdMsg.McuWrapperMessage mcuCmd = McuCmdMsg.McuWrapperMessage.parseFrom(frameBytes);
+								if (!mcuCmdProcessor.processCommand(mcuCmd)) {
+									Log.d(TAG, "Invalid Mcu command on USB");
+								}
+								;
+							} catch (InvalidProtocolBufferNanoException e) {
+								e.printStackTrace();
+							}
+						}
+					}
+				}
+			};
+			usbThread.start();
+		}
+	}
+
+	public void stopCommandTask() {
+		isCmdTaskRunning = false;
 	}
 
 	public byte[] receiveFrame() {
@@ -310,7 +353,7 @@ public class UsbProcessor {
 	}
 
 	private Boolean shouldRun() {
-		return shouldRun;
+		return isConnected;
 	}
 
 	private final BroadcastReceiver usbReceiver = new BroadcastReceiver() {

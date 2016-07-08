@@ -4,7 +4,7 @@
 	xmlns:tools="http://schemas.android.com/tools"
 	android:layout_width="match_parent"
 	android:layout_height="match_parent"
-	android:columnCount="6"
+	android:columnCount="5"
 	android:rowCount="20"
 	android:paddingBottom="@dimen/activity_vertical_margin"
 	android:paddingLeft="@dimen/activity_horizontal_margin"
@@ -45,21 +45,14 @@
 		android:layout_rowSpan="1"
 		android:text="@string/usb_connect_button"/>
 
-	<Button
-		android:id="@+id/usb_send_button"
-		android:layout_width="wrap_content"
-		android:layout_height="wrap_content"
-		android:layout_columnSpan="2"
-		android:layout_rowSpan="1"
-		android:text="@string/usb_send_button"/>
-
 	<ScrollView
 		android:id="@+id/usb_info_scrollview"
 		android:layout_width="wrap_content"
 		android:layout_height="wrap_content"
 		android:layout_columnSpan="2"
 		android:layout_rowSpan="15"
-		android:scrollbars="vertical">
+		android:scrollbars="vertical"
+		android:layout_column="0">
 
 		<TextView
 			android:id="@+id/usb_info_textview"
@@ -76,7 +69,7 @@
 		android:layout_columnSpan="1"
 		android:layout_rowSpan="4"
 		android:scrollbars="vertical"
-		android:layout_column="3">
+		android:layout_column="0">
 
 		<TextView
 			android:id="@+id/sensor_x_textview"
@@ -91,7 +84,7 @@
 		android:layout_columnSpan="1"
 		android:layout_rowSpan="4"
 		android:scrollbars="vertical"
-		android:layout_column="4">
+		android:layout_column="2">
 
 		<TextView
 			android:id="@+id/sensor_y_textview"
@@ -106,7 +99,7 @@
 		android:layout_columnSpan="1"
 		android:layout_rowSpan="4"
 		android:scrollbars="vertical"
-		android:layout_column="5">
+		android:layout_column="4">
 
 		<TextView
 			android:id="@+id/sensor_q_textview"

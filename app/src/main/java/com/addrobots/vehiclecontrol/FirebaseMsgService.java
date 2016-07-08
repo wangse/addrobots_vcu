@@ -41,16 +41,10 @@ import com.google.firebase.messaging.RemoteMessage;
 
 import java.util.Map;
 
-public class FirebaseMessageService extends FirebaseMessagingService {
+public class FirebaseMsgService extends FirebaseMessagingService {
 
-    private static final String TAG = "FirebaseMessageService";
+    private static final String TAG = "FirebaseMsgService";
 
-    /**
-     * Called when message is received.
-     *
-     * @param remoteMessage Object representing the message received from Firebase Cloud Messaging.
-     */
-    // [START receive_message]
     @Override
     public void onMessageReceived(RemoteMessage remoteMessage) {
         RemoteMessage.Notification notification = remoteMessage.getNotification();
@@ -67,13 +61,7 @@ public class FirebaseMessageService extends FirebaseMessagingService {
         Log.d(TAG, "From: " + remoteMessage.getFrom());
         Log.d(TAG, "Notification Message Body: " + body);
     }
-    // [END receive_message]
 
-    /**
-     * Create and show a simple notification containing the received FCM message.
-     *
-     * @param messageBody FCM message body received.
-     */
     private void sendNotification(String messageBody) {
         Intent intent = new Intent(this, VcuActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);

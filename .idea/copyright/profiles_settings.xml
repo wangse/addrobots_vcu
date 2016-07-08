@@ -1,3 +1,11 @@
 <component name="CopyrightManager">
-  <settings default="" />
+  <settings default="bsd-3">
+    <LanguageOptions name="JAVA">
+      <option name="prefixLines" value="false" />
+    </LanguageOptions>
+    <LanguageOptions name="__TEMPLATE__">
+      <option name="addBlankAfter" value="false" />
+      <option name="prefixLines" value="false" />
+    </LanguageOptions>
+  </settings>
 </component>

@@ -34,7 +34,6 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
-import com.addrobots.protobuf.VcuCmdMsg;
 import com.google.firebase.iid.FirebaseInstanceId;
 import com.google.firebase.messaging.FirebaseMessaging;
 
@@ -47,17 +46,13 @@ public class VcuActivity extends AppCompatActivity {
 	private Button logTokenButton;
 	private Button scanUsbButton;
 	private Button connectButton;
-	private Button sendButton;
 	private TextView usbDeviceInfoText;
 	private TextView sensorXText;
 	private TextView sensorYText;
 	private TextView sensorQText;
 
-//	private UsbDevice device;
-	private UsbProcessor usbManager;
-	private PidController pidController;
-	private McuCommandHandler mcuCommandHandler;
-//	private int messagesRcvd;
+	private UsbProcessor usbProcessor;
+	private McuCmdProcessor mcuCmdProcessor;
 
 	private static final String ACTION_USB_PERMISSION = "com.addrobots.vehiclecontrol.USB_PERMISSION";
 
@@ -75,28 +70,16 @@ public class VcuActivity extends AppCompatActivity {
 		scanUsbButton.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View arg0) {
-				usbDeviceInfoText.setText(usbManager.listUsbDevices());
+				usbDeviceInfoText.setText(usbProcessor.listUsbDevices());
 			}
 		});
 		connectButton = (Button) findViewById(R.id.usb_connect_button);
 		connectButton.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View arg0) {
-				usbManager.connect();
-			}
-		});
-		sendButton = (Button) findViewById(R.id.usb_send_button);
-		sendButton.setOnClickListener(new View.OnClickListener() {
-			@Override
-			public void onClick(View arg0) {
-				VcuCmdMsg.VcuWrapperMessage cmd = new VcuCmdMsg.VcuWrapperMessage();
-				VcuCmdMsg.Drive drive = new VcuCmdMsg.Drive();
-				drive.acceleration = 0.5;
-				drive.distance = 5.0;
-				drive.velocity = 0.5;
-				cmd.setDrive(drive);
-				pidController.setCurrentVcuCommand(cmd);
-				mcuCommandHandler.startCommandTask();
+				if (usbProcessor.connect()) {
+					usbProcessor.startCommandTask(mcuCmdProcessor);
+				}
 			}
 		});
 
@@ -119,9 +102,9 @@ public class VcuActivity extends AppCompatActivity {
 			}
 		});
 
-		usbManager = new UsbProcessor(this);
-		pidController = new PidController();
-		mcuCommandHandler = new McuCommandHandler(pidController, usbManager, this);
+		usbProcessor = new UsbProcessor(this);
+		PidController pidController = new PidController();
+		mcuCmdProcessor = new McuCmdProcessor(pidController, this);
 	}
 
 	public void xSensorDisplay(String text) {
