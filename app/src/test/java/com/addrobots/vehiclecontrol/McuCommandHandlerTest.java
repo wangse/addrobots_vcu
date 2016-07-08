@@ -26,11 +26,32 @@
 */
 package com.addrobots.vehiclecontrol;
 
-import android.app.Application;
-import android.test.ApplicationTestCase;
+import android.content.Context;
+import android.os.Bundle;
 
-public class ApplicationTest extends ApplicationTestCase<Application> {
-	public ApplicationTest() {
-		super(Application.class);
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.runners.MockitoJUnitRunner;
+
+import static org.junit.Assert.*;
+
+@RunWith(MockitoJUnitRunner.class)
+public class McuCommandHandlerTest {
+
+	@Mock
+	PidController pidController;
+	@Mock
+	UsbProcessor usbProcessor;
+	@Mock
+	VcuActivity vcuActivity;
+
+	@Test
+	public void testCommandProcessor() throws Exception {
+		McuCommandHandler mcuCommandHandler = new McuCommandHandler(pidController, usbProcessor, vcuActivity);
+		mcuCommandHandler.startCommandTask();
+		assertTrue(mcuCommandHandler.isCommandTaskRunning());
+		mcuCommandHandler.stopCommandTask();
+		assertFalse(mcuCommandHandler.isCommandTaskRunning());
 	}
 }

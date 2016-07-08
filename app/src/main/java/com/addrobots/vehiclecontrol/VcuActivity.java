@@ -27,53 +27,55 @@
 package com.addrobots.vehiclecontrol;
 
 import android.app.PendingIntent;
-import android.hardware.usb.UsbDevice;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
-import com.addrobots.protobuf.McuCmdMsg;
 import com.addrobots.protobuf.VcuCmdMsg;
-import com.google.protobuf.nano.InvalidProtocolBufferNanoException;
-
-import java.io.FileInputStream;
+import com.google.firebase.iid.FirebaseInstanceId;
+import com.google.firebase.messaging.FirebaseMessaging;
 
 public class VcuActivity extends AppCompatActivity {
 
+	private static final String TAG = "VcuActivity";
+
 	private PendingIntent mPermissionIntent;
-	private Button testButton;
+	private Button subscribeButton;
+	private Button logTokenButton;
+	private Button scanUsbButton;
 	private Button connectButton;
 	private Button sendButton;
 	private TextView usbDeviceInfoText;
 	private TextView sensorXText;
 	private TextView sensorYText;
 	private TextView sensorQText;
-	private UsbDevice device;
-	//private UsbManager manager;
-	private UsbCommunicationManager usbManager;
-	private Thread usbThread;
+
+//	private UsbDevice device;
+	private UsbProcessor usbManager;
 	private PidController pidController;
-	private int messagesRcvd;
+	private McuCommandHandler mcuCommandHandler;
+//	private int messagesRcvd;
 
 	private static final String ACTION_USB_PERMISSION = "com.addrobots.vehiclecontrol.USB_PERMISSION";
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+
 		setContentView(R.layout.activity_vcu);
 		usbDeviceInfoText = (TextView) findViewById(R.id.usb_info_textview);
 		sensorXText = (TextView) findViewById(R.id.sensor_x_textview);
 		sensorYText = (TextView) findViewById(R.id.sensor_y_textview);
 		sensorQText = (TextView) findViewById(R.id.sensor_q_textview);
 
-		testButton = (Button) findViewById(R.id.usb_test_button);
-		testButton.setOnClickListener(new View.OnClickListener() {
+		scanUsbButton = (Button) findViewById(R.id.scan_usb_button);
+		scanUsbButton.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View arg0) {
-				usbDeviceInfoText.setText("");
-				checkInfo();
+				usbDeviceInfoText.setText(usbManager.listUsbDevices());
 			}
 		});
 		connectButton = (Button) findViewById(R.id.usb_connect_button);
@@ -94,74 +96,55 @@ public class VcuActivity extends AppCompatActivity {
 				drive.velocity = 0.5;
 				cmd.setDrive(drive);
 				pidController.setCurrentVcuCommand(cmd);
-				startBackgroundReadTask();
+				mcuCommandHandler.startCommandTask();
 			}
 		});
 
-		usbManager = new UsbCommunicationManager(this);
+		subscribeButton = (Button) findViewById(R.id.subscribe_button);
+		subscribeButton.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				// [START subscribe_topics]
+				FirebaseMessaging.getInstance().subscribeToTopic("robot");
+				Log.d(TAG, "Subscribed to robot topic");
+				// [END subscribe_topics]
+			}
+		});
 
+		logTokenButton = (Button) findViewById(R.id.log_token_button);
+		logTokenButton.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				Log.d(TAG, "InstanceID token: " + FirebaseInstanceId.getInstance().getToken());
+			}
+		});
+
+		usbManager = new UsbProcessor(this);
 		pidController = new PidController();
+		mcuCommandHandler = new McuCommandHandler(pidController, usbManager, this);
 	}
 
-	private void checkInfo() {
-
-		usbDeviceInfoText.setText(usbManager.listUsbDevices());
+	public void xSensorDisplay(String text) {
+		sensorXText.append(text);
 	}
 
-	private void startBackgroundReadTask() {
+	public void ySensorDisplay(String text) {
+		sensorYText.append(text);
+	}
 
-		if (usbThread == null) {
-			usbThread = new Thread("USB frame processor") {
-				public void run() {
-					byte frameBytes[];
-					while (true) {
-						frameBytes = usbManager.receiveFrame();
-						if (frameBytes.length > 0) {
-							try {
-								messagesRcvd++;
-								final McuCmdMsg.McuWrapperMessage mcuCmd = McuCmdMsg.McuWrapperMessage.parseFrom(frameBytes);
-								runOnUiThread(new Runnable() {
-									@Override
-									public void run() {
-										pidController.processMcuMessage(mcuCmd);
-										switch (mcuCmd.getMsgCase()) {
-											case McuCmdMsg.McuWrapperMessage.MOTORCMD_FIELD_NUMBER:
-												break;
-											case McuCmdMsg.McuWrapperMessage.SENSORCMD_FIELD_NUMBER:
-												if ((messagesRcvd % 90) == 0) {
-													sensorXText.setText("");
-													sensorYText.setText("");
-													sensorQText.setText("");
-												}
-												if (mcuCmd.hasSensorCmd()) {
-													McuCmdMsg.SensorCmd sensorCmd = mcuCmd.getSensorCmd();
-													if (sensorCmd.name.equals("OFX")) {
-														sensorXText.append("\n" + sensorCmd.value);
-													} else if (sensorCmd.name.equals("OFY")) {
-														sensorYText.append("\n" + sensorCmd.value);
-													} else if (sensorCmd.name.equals("OFQ")) {
-														sensorQText.append("\n" + sensorCmd.value);
-													}
-												}
-												break;
-										}
-									}
+	public void qSensorDisplay(String text) {
+		sensorQText.append(text);
+	}
 
-								});
-							} catch (InvalidProtocolBufferNanoException e) {
-								e.printStackTrace();
-							}
-						}
+	public void xSensorClear() {
+		sensorXText.setText("");
+	}
 
-//						try {
-//							Thread.sleep(1);
-//						} catch (InterruptedException e) {
-//							e.printStackTrace();
-//						}
-					}
-				}
-			};
-			usbThread.start();
-		}
+	public void ySensorClear() {
+		sensorYText.setText("");
+	}
+
+	public void qSensorClear() {
+		sensorQText.setText("");
 	}
 }

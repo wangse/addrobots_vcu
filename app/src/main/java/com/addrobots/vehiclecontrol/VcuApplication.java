@@ -27,10 +27,55 @@
 package com.addrobots.vehiclecontrol;
 
 import android.app.Application;
-import android.test.ApplicationTestCase;
+import android.content.res.Configuration;
+import android.util.Log;
 
-public class ApplicationTest extends ApplicationTestCase<Application> {
-	public ApplicationTest() {
-		super(Application.class);
+import com.google.firebase.FirebaseApp;
+import com.google.firebase.FirebaseOptions;
+
+public class VcuApplication extends Application {
+
+	private static final String TAG = "VcuApplication";
+
+	@Override
+	public void onConfigurationChanged(Configuration newConfig) {
+		super.onConfigurationChanged(newConfig);
 	}
+
+	@Override
+	public void onCreate() {
+		super.onCreate();
+		FirebaseApp firebaseApp;
+		FirebaseOptions options;
+		if (!FirebaseApp.getApps(this).isEmpty()) {
+			firebaseApp = FirebaseApp.getInstance(FirebaseApp.DEFAULT_APP_NAME);
+			options = firebaseApp.getOptions();
+			if (options.getApiKey() != null) {
+				Log.d(TAG, "apikey: " + options.getApiKey().toString());
+				Log.d(TAG, "appid: " + options.getApplicationId().toString());
+				Log.d(TAG, "db: " + options.getDatabaseUrl().toString());
+				Log.d(TAG, "gcm: " + options.getGcmSenderId().toString());
+				Log.d(TAG, "bucket: " + options.getStorageBucket().toString());
+			}
+		}
+		options = new FirebaseOptions.Builder()
+				.setDatabaseUrl("https://addrobots.firebaseio.com")
+				.setApiKey("AIzaSyAjc99u3_RdL53ESiIcW5AlFELwBkdgC0w")
+				.setApplicationId("1:185039441716:android:c8526563e19cfafa")
+				.setGcmSenderId("185039441716")
+				.setStorageBucket("addrobots.appspot.com")
+				.build();
+		FirebaseApp.initializeApp(this, options, FirebaseApp.DEFAULT_APP_NAME);
+	}
+
+	@Override
+	public void onLowMemory() {
+		super.onLowMemory();
+	}
+
+	@Override
+	public void onTerminate() {
+		super.onTerminate();
+	}
+
 }

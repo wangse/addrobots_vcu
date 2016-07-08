@@ -26,11 +26,39 @@
 */
 package com.addrobots.vehiclecontrol;
 
-import android.app.Application;
-import android.test.ApplicationTestCase;
+import static android.support.test.espresso.Espresso.onView;
+import static android.support.test.espresso.action.ViewActions.click;
+import static android.support.test.espresso.matcher.ViewMatchers.withId;
+import static android.support.test.espresso.matcher.ViewMatchers.isDisplayed;
+import static android.support.test.espresso.assertion.ViewAssertions.matches;
+import android.support.test.filters.LargeTest;
+import android.support.test.rule.ActivityTestRule;
+import android.support.test.runner.AndroidJUnit4;
+import android.test.ActivityInstrumentationTestCase2;
+import android.test.TouchUtils;
+import android.widget.Button;
+import android.widget.TextView;
 
-public class ApplicationTest extends ApplicationTestCase<Application> {
-	public ApplicationTest() {
-		super(Application.class);
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+
+@RunWith(AndroidJUnit4.class)
+@LargeTest
+public class VcuActivityUiTest extends ActivityInstrumentationTestCase2<VcuActivity> {
+
+	public VcuActivityUiTest() {
+		super(VcuActivity.class);
+	}
+
+	@Rule
+	public ActivityTestRule<VcuActivity> mActivityRule = new ActivityTestRule<>(VcuActivity.class);
+	
+	@Test
+	public void testUsbScanButtonEspresso() {
+		onView(withId(R.id.scan_usb_button))
+				.perform(click())
+				.check(matches(isDisplayed()));
 	}
 }

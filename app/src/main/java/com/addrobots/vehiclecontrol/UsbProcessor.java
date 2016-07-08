@@ -45,7 +45,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 
-public class UsbCommunicationManager {
+public class UsbProcessor {
 	static final String ACTION_USB_PERMISSION = "com.android.example.USB_PERMISSION";
 
 	private static final int USB_RECIP_INTERFACE = 0x01;
@@ -72,7 +72,7 @@ public class UsbCommunicationManager {
 	private int recvBufferSize;
 	private int recvBufferOffset;
 
-	public UsbCommunicationManager(Context context) {
+	public UsbProcessor(Context context) {
 		this.context = context;
 		usbManager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
 
@@ -95,10 +95,11 @@ public class UsbCommunicationManager {
 		// user must approve of connection
 		usbManager.requestPermission(usbDevice, permissionIntent);
 
-		shouldRun = Boolean.TRUE;
+		shouldRun = true;
 	}
 
 	public void stop() {
+		shouldRun = false;
 		context.unregisterReceiver(usbReceiver);
 	}
 
