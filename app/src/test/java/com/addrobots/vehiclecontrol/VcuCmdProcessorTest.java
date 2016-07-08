@@ -31,32 +31,30 @@ package com.addrobots.vehiclecontrol;
 import com.addrobots.protobuf.McuCmdMsg;
 import com.addrobots.protobuf.VcuCmdMsg;
 
-public class VcuCmdProcessor {
-	private static final String TAG = "VcuCmdProcessor";
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.runners.MockitoJUnitRunner;
 
-	private PidController pidController;
-	private int messagesRcvd;
+import static org.junit.Assert.assertTrue;
 
-	public VcuCmdProcessor(PidController pidController) {
-		this.pidController = pidController;
-	}
+@RunWith(MockitoJUnitRunner.class)
+public class VcuCmdProcessorTest {
 
-	public Boolean processCommand(VcuCmdMsg.VcuWrapperMessage vcuCmd) {
-		Boolean result = false;
-		pidController.processVcuCommand(vcuCmd);
-		switch (vcuCmd.getMsgCase()) {
-			case VcuCmdMsg.VcuWrapperMessage.HALT_FIELD_NUMBER:
-				break;
-			case VcuCmdMsg.VcuWrapperMessage.DRIVE_FIELD_NUMBER:
-				if (vcuCmd.hasDrive()) {
-					result = true;
-					VcuCmdMsg.Drive driveCmd = vcuCmd.getDrive();
+	@Mock
+	PidController pidController;
+	@Mock
+	UsbProcessor usbProcessor;
+	@Mock
+	VcuActivity vcuActivity;
 
-				}
-				break;
-			case VcuCmdMsg.VcuWrapperMessage.ORBIT_FIELD_NUMBER:
-				break;
-		}
-		return result;
+	@Test
+	public void testCommandProcessor() throws Exception {
+		VcuCmdProcessor vcuCmdProcessor = new VcuCmdProcessor(pidController);
+
+		// Test a "drive" command from raw bytes.
+		byte[] cmdBytes = {0x0A, 0x2D, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, (byte) 0xF8, 0x3F, 0x12, 0x03, 0x46, 0x57, 0x44, 0x19, (byte) 0x9A, (byte) 0x99, (byte) 0x99, (byte) 0x99, (byte) 0x99, (byte) 0x99, (byte) 0x99, 0x3F, 0x21, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, (byte) 0xF0, 0x3F, 0x29, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x32, 0x00, 0x08, 0x01};
+		VcuCmdMsg.VcuWrapperMessage vcuCmd = VcuCmdMsg.VcuWrapperMessage.parseFrom(cmdBytes);
+		assertTrue(vcuCmdProcessor.processCommand(vcuCmd));
 	}
 }

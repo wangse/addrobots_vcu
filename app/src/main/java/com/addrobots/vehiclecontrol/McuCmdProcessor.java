@@ -56,16 +56,15 @@ public class McuCmdProcessor {
 		pidController.processMcuCommand(mcuCmd);
 		switch (mcuCmd.getMsgCase()) {
 			case McuCmdMsg.McuWrapperMessage.MOTORCMD_FIELD_NUMBER:
-				result = true;
 				break;
 			case McuCmdMsg.McuWrapperMessage.SENSORCMD_FIELD_NUMBER:
-				result = true;
-				if ((messagesRcvd % 90) == 0) {
-					vcuActivity.xSensorClear();
-					vcuActivity.ySensorClear();
-					vcuActivity.qSensorClear();
-				}
 				if (mcuCmd.hasSensorCmd()) {
+					result = true;
+					if ((messagesRcvd % 90) == 0) {
+						vcuActivity.xSensorClear();
+						vcuActivity.ySensorClear();
+						vcuActivity.qSensorClear();
+					}
 					McuCmdMsg.SensorCmd sensorCmd = mcuCmd.getSensorCmd();
 					if (sensorCmd.name.equals("OFX")) {
 						vcuActivity.xSensorDisplay("\n" + sensorCmd.value);
