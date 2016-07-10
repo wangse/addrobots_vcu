@@ -26,6 +26,8 @@
 */
 package com.addrobots.vehiclecontrol;
 
+import android.content.Context;
+
 import com.addrobots.protobuf.McuCmdMsg;
 
 import org.junit.Test;
@@ -34,6 +36,7 @@ import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 
 import static org.junit.Assert.*;
+import static org.mockito.Mockito.when;
 
 @RunWith(MockitoJUnitRunner.class)
 public class McuCmdProcessorTest {
@@ -41,13 +44,13 @@ public class McuCmdProcessorTest {
 	@Mock
 	PidController pidController;
 	@Mock
-	UsbProcessor usbProcessor;
-	@Mock
-	VcuActivity vcuActivity;
+	Context context;
 
 	@Test
 	public void testCommandProcessor() throws Exception {
-		McuCmdProcessor mcuCmdProcessor = new McuCmdProcessor(pidController, vcuActivity);
+		McuCmdProcessor mcuCmdProcessor = new McuCmdProcessor(pidController, context);
+
+		when(context.getApplicationContext()).thenReturn(context);
 
 		// Test a "drive" command from raw bytes.
 		byte[] cmdBytes = {0x12, 0x11, 0x0A, 0x03, 0x4F, 0x46, 0x58, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, (byte) 0xF0, 0x3F, 0x1A, 0x01, 0x50};

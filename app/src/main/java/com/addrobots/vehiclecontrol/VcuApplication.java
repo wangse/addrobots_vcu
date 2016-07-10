@@ -27,6 +27,7 @@
 package com.addrobots.vehiclecontrol;
 
 import android.app.Application;
+import android.content.Intent;
 import android.content.res.Configuration;
 import android.util.Log;
 
@@ -66,6 +67,8 @@ public class VcuApplication extends Application {
 				.setStorageBucket("addrobots.appspot.com")
 				.build();
 		FirebaseApp.initializeApp(this, options, FirebaseApp.DEFAULT_APP_NAME);
+
+		startService();
 	}
 
 	@Override
@@ -76,6 +79,14 @@ public class VcuApplication extends Application {
 	@Override
 	public void onTerminate() {
 		super.onTerminate();
+		stopService();;
 	}
 
+	public void startService() {
+		startService(new Intent(this.getBaseContext(), BackgroundService.class));
+	}
+
+	public void stopService() {
+		stopService(new Intent(this.getBaseContext(), BackgroundService.class));
+	}
 }

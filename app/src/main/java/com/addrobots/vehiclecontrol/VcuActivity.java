@@ -26,8 +26,12 @@
 */
 package com.addrobots.vehiclecontrol;
 
-import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
+import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
@@ -39,9 +43,15 @@ import com.google.firebase.messaging.FirebaseMessaging;
 
 public class VcuActivity extends AppCompatActivity {
 
+	public static final String VCU_CLEAR_SENSOR_DATA = "VCU_CLEAR_SENSOR_DATA";
+	public static final String VCU_X_SENSOR_DATA = "VCU_X_SENSOR_DATA";
+	public static final String VCU_Y_SENSOR_DATA = "VCU_Y_SENSOR_DATA";
+	public static final String VCU_Q_SENSOR_DATA = "VCU_Q_SENSOR_DATA";
+
 	private static final String TAG = "VcuActivity";
 
-	private PendingIntent mPermissionIntent;
+	private Context context;
+	private BroadcastReceiver receiver;
 	private Button subscribeButton;
 	private Button logTokenButton;
 	private Button scanUsbButton;
@@ -51,14 +61,36 @@ public class VcuActivity extends AppCompatActivity {
 	private TextView sensorYText;
 	private TextView sensorQText;
 
-	private UsbProcessor usbProcessor;
-	private McuCmdProcessor mcuCmdProcessor;
-
-	private static final String ACTION_USB_PERMISSION = "com.addrobots.vehiclecontrol.USB_PERMISSION";
-
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+
+		receiver = new BroadcastReceiver() {
+			@Override
+			public void onReceive(Context context, Intent intent) {
+				switch (intent.getAction()) {
+					case BackgroundService.BGSVC_USB_DEVICE_LIST:
+						usbDeviceInfoText.setText(intent.getStringExtra(BackgroundService.BGSVC_USB_DEVICE_LIST));
+						break;
+					case VcuActivity.VCU_CLEAR_SENSOR_DATA:
+						sensorXText.setText("");
+						sensorYText.setText("");
+						sensorQText.setText("");
+						break;
+					case VcuActivity.VCU_X_SENSOR_DATA:
+						sensorXText.setText(intent.getStringExtra(VcuActivity.VCU_X_SENSOR_DATA));
+						break;
+					case VcuActivity.VCU_Y_SENSOR_DATA:
+						sensorXText.setText(intent.getStringExtra(VcuActivity.VCU_Y_SENSOR_DATA));
+						break;
+					case VcuActivity.VCU_Q_SENSOR_DATA:
+						sensorXText.setText(intent.getStringExtra(VcuActivity.VCU_Q_SENSOR_DATA));
+						break;
+				}
+			}
+		};
+
+		context = this.getApplicationContext();
 
 		setContentView(R.layout.activity_vcu);
 		usbDeviceInfoText = (TextView) findViewById(R.id.usb_info_textview);
@@ -70,16 +102,16 @@ public class VcuActivity extends AppCompatActivity {
 		scanUsbButton.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View arg0) {
-				usbDeviceInfoText.setText(usbProcessor.listUsbDevices());
+				Intent intent = new Intent(BackgroundService.BGSVC_USB_SCAN);
+				LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
 			}
 		});
 		connectButton = (Button) findViewById(R.id.usb_connect_button);
 		connectButton.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View arg0) {
-				if (usbProcessor.connect()) {
-					usbProcessor.startCommandTask(mcuCmdProcessor);
-				}
+				Intent intent = new Intent(BackgroundService.BGSVC_USB_CONNECT);
+				LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
 			}
 		});
 
@@ -101,33 +133,23 @@ public class VcuActivity extends AppCompatActivity {
 				Log.d(TAG, "InstanceID token: " + FirebaseInstanceId.getInstance().getToken());
 			}
 		});
-
-		usbProcessor = new UsbProcessor(this);
-		PidController pidController = new PidController();
-		mcuCmdProcessor = new McuCmdProcessor(pidController, this);
 	}
 
-	public void xSensorDisplay(String text) {
-		sensorXText.append(text);
+	@Override
+	protected void onResume() {
+		super.onResume();
+		IntentFilter intentFilter = new IntentFilter();
+		intentFilter.addAction(VcuActivity.VCU_CLEAR_SENSOR_DATA);
+		intentFilter.addAction(VcuActivity.VCU_X_SENSOR_DATA);
+		intentFilter.addAction(VcuActivity.VCU_Y_SENSOR_DATA);
+		intentFilter.addAction(VcuActivity.VCU_Q_SENSOR_DATA);
+		intentFilter.addAction(BackgroundService.BGSVC_USB_DEVICE_LIST);
+		LocalBroadcastManager.getInstance(this).registerReceiver(receiver, intentFilter);
 	}
 
-	public void ySensorDisplay(String text) {
-		sensorYText.append(text);
-	}
-
-	public void qSensorDisplay(String text) {
-		sensorQText.append(text);
-	}
-
-	public void xSensorClear() {
-		sensorXText.setText("");
-	}
-
-	public void ySensorClear() {
-		sensorYText.setText("");
-	}
-
-	public void qSensorClear() {
-		sensorQText.setText("");
+	@Override
+	protected void onPause() {
+		super.onPause();
+		LocalBroadcastManager.getInstance(this).unregisterReceiver(receiver);
 	}
 }

@@ -26,6 +26,10 @@
 */
 package com.addrobots.vehiclecontrol;
 
+import android.content.Context;
+import android.content.Intent;
+import android.support.v4.content.LocalBroadcastManager;
+
 import com.addrobots.protobuf.McuCmdMsg;
 import com.addrobots.protobuf.VcuCmdMsg;
 
@@ -33,13 +37,13 @@ public class McuCmdProcessor {
 
 	private static final String TAG = "McuCmdProcessor";
 
+	private Context context;
 	private PidController pidController;
-	private VcuActivity vcuActivity;
 	private int messagesRcvd;
 
-	public McuCmdProcessor(PidController pidController, VcuActivity vcuActivity) {
+	public McuCmdProcessor(PidController pidController, Context context) {
 		this.pidController = pidController;
-		this.vcuActivity = vcuActivity;
+		this.context = context;
 
 		VcuCmdMsg.VcuWrapperMessage cmd = new VcuCmdMsg.VcuWrapperMessage();
 		VcuCmdMsg.Drive drive = new VcuCmdMsg.Drive();
@@ -54,6 +58,7 @@ public class McuCmdProcessor {
 		Boolean result = false;
 		messagesRcvd++;
 		pidController.processMcuCommand(mcuCmd);
+		Intent intent = null;
 		switch (mcuCmd.getMsgCase()) {
 			case McuCmdMsg.McuWrapperMessage.MOTORCMD_FIELD_NUMBER:
 				break;
@@ -61,17 +66,23 @@ public class McuCmdProcessor {
 				if (mcuCmd.hasSensorCmd()) {
 					result = true;
 					if ((messagesRcvd % 90) == 0) {
-						vcuActivity.xSensorClear();
-						vcuActivity.ySensorClear();
-						vcuActivity.qSensorClear();
+						intent = new Intent(VcuActivity.VCU_CLEAR_SENSOR_DATA);
+						LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
+
 					}
 					McuCmdMsg.SensorCmd sensorCmd = mcuCmd.getSensorCmd();
 					if (sensorCmd.name.equals("OFX")) {
-						vcuActivity.xSensorDisplay("\n" + sensorCmd.value);
+						intent = new Intent(VcuActivity.VCU_X_SENSOR_DATA);
+						intent.putExtra(VcuActivity.VCU_X_SENSOR_DATA, "\n" + sensorCmd.value);
+						LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
 					} else if (sensorCmd.name.equals("OFY")) {
-						vcuActivity.ySensorDisplay("\n" + sensorCmd.value);
+						intent = new Intent(VcuActivity.VCU_Y_SENSOR_DATA);
+						intent.putExtra(VcuActivity.VCU_Y_SENSOR_DATA, "\n" + sensorCmd.value);
+						LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
 					} else if (sensorCmd.name.equals("OFQ")) {
-						vcuActivity.qSensorDisplay("\n" + sensorCmd.value);
+						intent = new Intent(VcuActivity.VCU_Q_SENSOR_DATA);
+						intent.putExtra(VcuActivity.VCU_Q_SENSOR_DATA, "\n" + sensorCmd.value);
+						LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
 					}
 				}
 				break;
