@@ -29,37 +29,32 @@
 package com.addrobots.vehiclecontrol;
 
 import android.content.Context;
+import android.content.Intent;
 
-import com.addrobots.protobuf.McuCmdMsg;
-import com.addrobots.protobuf.VcuCmdMsg;
-
+import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.mock;
 
-@RunWith(MockitoJUnitRunner.class)
-public class VcuCmdProcessorTest {
+public class UsbBackgroundServiceTest {
 
-	@Mock
-	PidController pidController;
-	@Mock
-	UsbProcessor usbProcessor;
-	@Mock
-	Context context;
+	private Context context;
+	private UsbBackgroundService usbBackgroundService;
+
+	@Before
+	public void init() {
+		context = mock(Context.class);
+		usbBackgroundService = new UsbBackgroundService();
+		context.startService(new Intent(context, UsbBackgroundService.class));
+	}
 
 	@Test
-	public void testCommandProcessor() throws Exception {
-		VcuCmdProcessor vcuCmdProcessor = new VcuCmdProcessor(pidController);
-
-		when(context.getApplicationContext()).thenReturn(context);
-
-		// Test a "drive" command from raw bytes.
-		byte[] cmdBytes = {0x0A, 0x2D, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, (byte) 0xF8, 0x3F, 0x12, 0x03, 0x46, 0x57, 0x44, 0x19, (byte) 0x9A, (byte) 0x99, (byte) 0x99, (byte) 0x99, (byte) 0x99, (byte) 0x99, (byte) 0x99, 0x3F, 0x21, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, (byte) 0xF0, 0x3F, 0x29, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x32, 0x00, 0x08, 0x01};
-		VcuCmdMsg.VcuWrapperMessage vcuCmd = VcuCmdMsg.VcuWrapperMessage.parseFrom(cmdBytes);
-		assertTrue(vcuCmdProcessor.processCommand(vcuCmd));
+	public void testUsbProcessor() throws Exception {
+		usbBackgroundService.startCommandTask();
+		assertTrue(usbBackgroundService.isCommandTaskRunning());
+		usbBackgroundService.stopCommandTask();
+		assertFalse(usbBackgroundService.isCommandTaskRunning());
 	}
 }

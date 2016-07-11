@@ -28,15 +28,18 @@ package com.addrobots.vehiclecontrol;
 
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.hardware.usb.UsbConstants;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
 import android.hardware.usb.UsbManager;
+import android.os.IBinder;
 import android.util.Log;
 
 import com.addrobots.protobuf.McuCmdMsg;
@@ -46,25 +49,25 @@ import java.io.ByteArrayOutputStream;
 import java.util.HashMap;
 import java.util.Iterator;
 
-public class UsbProcessor {
+public class UsbFrameProcessor {
 
-	static final String ACTION_USB_PERMISSION = "com.android.example.USB_PERMISSION";
+	public static final byte END = (byte) 0xC0;                        //0300; /* indicates end of packet */
+	public static final byte ESC = (byte) 0xDB;                        //0333; /* indicates byte stuffing */
+	public static final byte ESC_END = (byte) 0xDC;                        //0334; /* ESC ESC_END means END data byte */
+	public static final byte ESC_ESC = (byte) 0xDD;                        //0335; /* ESC ESC_ESC means ESC data byte */
 
-	private static final String TAG = "McuCmdProcessor";
+	private static final String TAG = "UsbFrameProcessor";
+	private static final String ACTION_USB_PERMISSION = "USB_PERMISSION";
+
 	private static final int USB_RECIP_INTERFACE = 0x01;
 	private static final int USB_RT_ACM = UsbConstants.USB_TYPE_CLASS | USB_RECIP_INTERFACE;
 	private static final int SET_LINE_CODING = 0x20;  // USB CDC 1.1 section 6.2
 	private static final int MAX_FRAME_BYTES = 256;
 
-	private static final byte END = (byte) 0xC0;                        //0300; /* indicates end of packet */
-	private static final byte ESC = (byte) 0xDB;                        //0333; /* indicates byte stuffing */
-	private static final byte ESC_END = (byte) 0xDC;                        //0334; /* ESC ESC_END means END data byte */
-	private static final byte ESC_ESC = (byte) 0xDD;                        //0335; /* ESC ESC_ESC means ESC data byte */
-
 	private Boolean isConnected = false;
-	private Boolean isCmdTaskRunning = false;
 	private UsbManager usbManager;
 	private UsbDevice usbDevice;
+	private BroadcastReceiver usbReceiver;
 	private UsbInterface intf = null;
 	private UsbEndpoint input, output;
 	private UsbDeviceConnection connection;
@@ -74,21 +77,24 @@ public class UsbProcessor {
 	private int recvBufferSize;
 	private int recvBufferOffset;
 
-	public UsbProcessor(Context context) {
+	public UsbFrameProcessor(Context context) {
 		this.context = context;
 		usbManager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
 
-		// ask permission from user to use the usb device
+		// Ask permission from user to use the usb device
 		permissionIntent = PendingIntent.getBroadcast(context, 0, new Intent(ACTION_USB_PERMISSION), 0);
 		IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
 		context.registerReceiver(usbReceiver, filter);
+
+		// Setup the USB receiver.
+		setupUsbReceiver();
 	}
 
 	public Boolean connect() {
 		Boolean result = true;
 		// check if there's a connected usb device
 		if ((usbManager == null) || (usbManager.getDeviceList() == null) || (usbManager.getDeviceList().isEmpty())) {
-			Log.d("USB", "No connected devices");
+			Log.d(TAG, "No connected devices");
 			result = false;
 			return result;
 		}
@@ -112,40 +118,6 @@ public class UsbProcessor {
 		return isConnected;
 	}
 
-	public Boolean isCommandTaskRunning() {
-		return isCmdTaskRunning;
-	}
-
-	public void startCommandTask(final McuCmdProcessor mcuCmdProcessor) {
-		if (isCmdTaskRunning == false) {
-			isCmdTaskRunning = true;
-			Thread usbThread = new Thread("USB frame processor") {
-				public void run() {
-					byte frameBytes[];
-					while (isCmdTaskRunning) {
-						frameBytes = receiveFrame();
-						if (frameBytes.length > 0) {
-							try {
-								McuCmdMsg.McuWrapperMessage mcuCmd = McuCmdMsg.McuWrapperMessage.parseFrom(frameBytes);
-								if (!mcuCmdProcessor.processCommand(mcuCmd)) {
-									Log.d(TAG, "Invalid Mcu command on USB");
-								}
-								;
-							} catch (InvalidProtocolBufferNanoException e) {
-								e.printStackTrace();
-							}
-						}
-					}
-				}
-			};
-			usbThread.start();
-		}
-	}
-
-	public void stopCommandTask() {
-		isCmdTaskRunning = false;
-	}
-
 	public byte[] receiveFrame() {
 		byte[] frameBuffer = new byte[MAX_FRAME_BYTES];
 		byte nextByte;
@@ -153,10 +125,10 @@ public class UsbProcessor {
 
 		// Loop reading bytes until we put together  a whole packet.
 		loop:
-		while (shouldRun()) {
+		while (isConnected()) {
 			nextByte = readByte();
-
-			if (shouldRun()) {
+			// Because we might leave readByte due to a disconnect.
+			if (isConnected()) {
 				switch (nextByte) {
 
 					// if it's an END character then we're done with the packet.
@@ -167,20 +139,8 @@ public class UsbProcessor {
 						} else {
 							break;
 						}
-
-						/*
-						 * If it's the same code as an ESC character, wait
-						 * and get another character and then figure out
-						 * what to store in the packet based on that.
-						 */
 					case ESC:
 						nextByte = readByte();
-
-						/* If "c" is not one of these two, then we
-						 * have a protocol violation.  The best bet
-						 * seems to be to leave the byte alone and
-						 * just stuff it into the packet
-						 */
 						switch (nextByte) {
 							case ESC_END:
 								nextByte = END;
@@ -193,12 +153,11 @@ public class UsbProcessor {
 						}
 
 					default:
-						// here we fall into the default handler and let it store the character for us.
 						try {
 							frameBuffer[bytesReceived++] = (byte) nextByte;
 						} catch (ArrayIndexOutOfBoundsException e) {
 							// Note the error and send the full frame up for handling.
-							Log.d("USB", "Serial framing error", e);
+							Log.d(TAG, "Serial framing error", e);
 							bytesReceived = MAX_FRAME_BYTES;
 							break loop;
 						}
@@ -220,7 +179,7 @@ public class UsbProcessor {
 		int bytesToSend = Math.min(MAX_FRAME_BYTES, frameBytes.length);
 
 		if (frameBytes.length > bytesToSend) {
-			Log.e("USB", "Packet contains more bytes than can fit on radio!");
+			Log.e(TAG, "Packet contains more bytes than can fit on radio!");
 		}
 
 		for (int i = 0; i < bytesToSend; i++) {
@@ -245,7 +204,7 @@ public class UsbProcessor {
 		try {
 			hexDumpArray(frameBytes);
 		} catch (Exception e) {
-			Log.e("USB", e.getMessage());
+			Log.e(TAG, e.getMessage());
 		}
 	}
 
@@ -352,48 +311,46 @@ public class UsbProcessor {
 		}
 	}
 
-	private Boolean shouldRun() {
-		return isConnected;
-	}
+	private void setupUsbReceiver() {
+		usbReceiver = new BroadcastReceiver() {
+			public void onReceive(Context context, Intent intent) {
+				String action = intent.getAction();
+				if (ACTION_USB_PERMISSION.equals(action)) {
+					// broadcast is like an interrupt and works asynchronously with the class, it must be synced just in case
+					synchronized (this) {
+						if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
+							setupConnection();
 
-	private final BroadcastReceiver usbReceiver = new BroadcastReceiver() {
-		public void onReceive(Context context, Intent intent) {
-			String action = intent.getAction();
-			if (ACTION_USB_PERMISSION.equals(action)) {
-				// broadcast is like an interrupt and works asynchronously with the class, it must be synced just in case
-				synchronized (this) {
-					if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
-						setupConnection();
+							connection = usbManager.openDevice(usbDevice);
+							connection.claimInterface(intf, true);
 
-						connection = usbManager.openDevice(usbDevice);
-						connection.claimInterface(intf, true);
+							// set flow control to 8N1 at 115200 baud
+							int baudRate = 115200;
+							byte stopBitsByte = 1;
+							byte parityBitesByte = 0;
+							byte dataBits = 8;
+							byte[] msg = {
+									(byte) (baudRate & 0xff),
+									(byte) ((baudRate >> 8) & 0xff),
+									(byte) ((baudRate >> 16) & 0xff),
+									(byte) ((baudRate >> 24) & 0xff),
+									stopBitsByte,
+									parityBitesByte,
+									(byte) dataBits
+							};
 
-						// set flow control to 8N1 at 115200 baud
-						int baudRate = 115200;
-						byte stopBitsByte = 1;
-						byte parityBitesByte = 0;
-						byte dataBits = 8;
-						byte[] msg = {
-								(byte) (baudRate & 0xff),
-								(byte) ((baudRate >> 8) & 0xff),
-								(byte) ((baudRate >> 16) & 0xff),
-								(byte) ((baudRate >> 24) & 0xff),
-								stopBitsByte,
-								parityBitesByte,
-								(byte) dataBits
-						};
-
-						connection.controlTransfer(UsbConstants.USB_TYPE_CLASS | 0x01, 0x20, 0, 0, msg, msg.length, 5000);
-						connection.controlTransfer(0x21, 0x22, 0x1, 0, null, 0, 0);
-					} else {
-						Log.d("USB", "Permission denied for USB device");
+							connection.controlTransfer(UsbConstants.USB_TYPE_CLASS | 0x01, 0x20, 0, 0, msg, msg.length, 5000);
+							connection.controlTransfer(0x21, 0x22, 0x1, 0, null, 0, 0);
+						} else {
+							Log.d(TAG, "Permission denied for USB device");
+						}
 					}
+				} else if (UsbManager.ACTION_USB_DEVICE_DETACHED.equals(action)) {
+					Log.d(TAG, "USB device detached");
 				}
-			} else if (UsbManager.ACTION_USB_DEVICE_DETACHED.equals(action)) {
-				Log.d("USB", "USB device detached");
 			}
-		}
-	};
+		};
+	}
 
 	private int sendAcmControlMessage(int request, int value, byte[] buf) {
 		return connection.controlTransfer(USB_RT_ACM, request, value, 0, buf, buf != null ? buf.length : 0, 5000);
@@ -412,13 +369,13 @@ public class UsbProcessor {
 		return sendAcmControlMessage(SET_LINE_CODING, 0, msg);
 	}
 
-	protected void hexDumpArray(byte[] inByteArray) {
+	private void hexDumpArray(byte[] inByteArray) {
 		String text = "";
 		int pos = 0;
 		for (pos = 0; pos < inByteArray.length; pos++) {
 			if (pos % 16 == 0) {
 				if (text.length() > 0) {
-					Log.d("USB", text);
+					Log.d(TAG, text);
 				}
 				text = String.format("\t%02x: ", pos);
 			} else {
@@ -427,8 +384,7 @@ public class UsbProcessor {
 			text += String.format("%02x", inByteArray[pos]);
 		}
 		if (pos != 0) {
-			Log.d("USB", text);
+			Log.d(TAG, text);
 		}
 	}
-
 }

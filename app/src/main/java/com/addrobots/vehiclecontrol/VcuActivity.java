@@ -69,8 +69,8 @@ public class VcuActivity extends AppCompatActivity {
 			@Override
 			public void onReceive(Context context, Intent intent) {
 				switch (intent.getAction()) {
-					case BackgroundService.BGSVC_USB_DEVICE_LIST:
-						usbDeviceInfoText.setText(intent.getStringExtra(BackgroundService.BGSVC_USB_DEVICE_LIST));
+					case UsbBackgroundService.BGSVC_USB_DEVICE_LIST:
+						usbDeviceInfoText.setText(intent.getStringExtra(UsbBackgroundService.BGSVC_USB_DEVICE_LIST));
 						break;
 					case VcuActivity.VCU_CLEAR_SENSOR_DATA:
 						sensorXText.setText("");
@@ -102,7 +102,7 @@ public class VcuActivity extends AppCompatActivity {
 		scanUsbButton.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View arg0) {
-				Intent intent = new Intent(BackgroundService.BGSVC_USB_SCAN);
+				Intent intent = new Intent(UsbBackgroundService.BGSVC_USB_SCAN);
 				LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
 			}
 		});
@@ -110,7 +110,7 @@ public class VcuActivity extends AppCompatActivity {
 		connectButton.setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View arg0) {
-				Intent intent = new Intent(BackgroundService.BGSVC_USB_CONNECT);
+				Intent intent = new Intent(UsbBackgroundService.BGSVC_USB_CONNECT);
 				LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
 			}
 		});
@@ -143,7 +143,7 @@ public class VcuActivity extends AppCompatActivity {
 		intentFilter.addAction(VcuActivity.VCU_X_SENSOR_DATA);
 		intentFilter.addAction(VcuActivity.VCU_Y_SENSOR_DATA);
 		intentFilter.addAction(VcuActivity.VCU_Q_SENSOR_DATA);
-		intentFilter.addAction(BackgroundService.BGSVC_USB_DEVICE_LIST);
+		intentFilter.addAction(UsbBackgroundService.BGSVC_USB_DEVICE_LIST);
 		LocalBroadcastManager.getInstance(this).registerReceiver(receiver, intentFilter);
 	}
 

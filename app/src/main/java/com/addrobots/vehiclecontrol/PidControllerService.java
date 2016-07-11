@@ -26,38 +26,56 @@
 */
 package com.addrobots.vehiclecontrol;
 
+import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Binder;
+import android.os.IBinder;
+import android.support.annotation.Nullable;
 import android.support.v4.content.LocalBroadcastManager;
 
 import com.addrobots.protobuf.McuCmdMsg;
 import com.addrobots.protobuf.VcuCmdMsg;
 
-public class McuCmdProcessor {
-
-	private static final String TAG = "McuCmdProcessor";
+public class PidControllerService extends Service {
 
 	private Context context;
-	private PidController pidController;
 	private int messagesRcvd;
+	private final IBinder binder = new PidControllerBinder();
+	private VcuCmdMsg.VcuWrapperMessage activeVcuCommand;
 
-	public McuCmdProcessor(PidController pidController, Context context) {
-		this.pidController = pidController;
-		this.context = context;
-
-		VcuCmdMsg.VcuWrapperMessage cmd = new VcuCmdMsg.VcuWrapperMessage();
-		VcuCmdMsg.Drive drive = new VcuCmdMsg.Drive();
-		drive.acceleration = 0.5;
-		drive.distance = 5.0;
-		drive.velocity = 0.5;
-		cmd.setDrive(drive);
-		pidController.processVcuCommand(cmd);
+	// This class allows us to bind the USB frame processor and Firebase Cloud Messaging.
+	public class PidControllerBinder extends Binder {
+		PidControllerService getService() {
+			return PidControllerService.this;
+		}
 	}
 
-	public Boolean processCommand(McuCmdMsg.McuWrapperMessage mcuCmd) {
+	public PidControllerService(Context context) {
+		this.context = context;
+	}
+
+	public Boolean processVcuCommand(VcuCmdMsg.VcuWrapperMessage vcuCmd) {
+		Boolean result = false;
+		switch (vcuCmd.getMsgCase()) {
+			case VcuCmdMsg.VcuWrapperMessage.HALT_FIELD_NUMBER:
+				break;
+			case VcuCmdMsg.VcuWrapperMessage.DRIVE_FIELD_NUMBER:
+				if (vcuCmd.hasDrive()) {
+					result = true;
+					VcuCmdMsg.Drive driveCmd = vcuCmd.getDrive();
+
+				}
+				break;
+			case VcuCmdMsg.VcuWrapperMessage.ORBIT_FIELD_NUMBER:
+				break;
+		}
+		return result;
+	}
+
+	public Boolean processMcuCommand(McuCmdMsg.McuWrapperMessage mcuCmd) {
 		Boolean result = false;
 		messagesRcvd++;
-		pidController.processMcuCommand(mcuCmd);
 		Intent intent = null;
 		switch (mcuCmd.getMsgCase()) {
 			case McuCmdMsg.McuWrapperMessage.MOTORCMD_FIELD_NUMBER:
@@ -89,5 +107,19 @@ public class McuCmdProcessor {
 		}
 		return result;
 	}
-}
 
+	@Override
+	public void onCreate() {
+		super.onCreate();
+	}
+
+	@Override
+	public void onDestroy() {
+//		LocalBroadcastManager.getInstance(this).unregisterReceiver(receiver);
+	}
+
+	@Override
+	public IBinder onBind(Intent intent) {
+		return binder;
+	}
+}

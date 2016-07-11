@@ -39,7 +39,7 @@
 			</intent-filter>
 		</service>
 		<service
-			android:name=".BackgroundService"
+			android:name=".UsbBackgroundService"
 			android:enabled="true"
 			android:exported="false">
 			<intent-filter>

@@ -30,26 +30,35 @@ package com.addrobots.vehiclecontrol;
 
 import android.app.Service;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.os.IBinder;
 import android.support.v4.content.LocalBroadcastManager;
+import android.util.Log;
 
-public class BackgroundService extends Service {
+import com.addrobots.protobuf.McuCmdMsg;
+import com.google.protobuf.nano.InvalidProtocolBufferNanoException;
+
+public class UsbBackgroundService extends Service {
 
 	public static final String BGSVC_USB_CONNECT = "USB_CONNECT";
 	public static final String BGSVC_USB_SCAN = "USB_SCAN";
 	public static final String BGSVC_USB_DEVICE_LIST = "USB_DEVICE_LIST";
 
-	private static final String TAG = "BackgroundService";
+	private static final String TAG = "UsbBackgroundService";
 
+	private Boolean isCmdTaskRunning = false;
 	private int startMode;
-	private IBinder binder;
+	private PidControllerService.PidControllerBinder  binder;
 	private boolean allowRebind;
 	private BroadcastReceiver receiver;
-	private UsbProcessor usbProcessor;
-	private McuCmdProcessor mcuCmdProcessor;
+	private UsbFrameProcessor usbFrameProcessor;
+	private ServiceConnection pidServiceConnection;
+	private PidControllerService pidControllerService;
+	boolean pidServiceIsBound = false;
 
 	private static final String ACTION_USB_PERMISSION = "com.addrobots.vehiclecontrol.USB_PERMISSION";
 
@@ -58,9 +67,7 @@ public class BackgroundService extends Service {
 		super.onCreate();
 
 		Context context = this.getApplicationContext();
-		usbProcessor = new UsbProcessor(context);
-		PidController pidController = new PidController();
-		mcuCmdProcessor = new McuCmdProcessor(pidController, context);
+		usbFrameProcessor = new UsbFrameProcessor(context);
 
 		receiver = new BroadcastReceiver() {
 			@Override
@@ -68,13 +75,13 @@ public class BackgroundService extends Service {
 				if (intent.getAction() != null) {
 					switch (intent.getAction()) {
 						case BGSVC_USB_CONNECT:
-							if (usbProcessor.connect()) {
-								usbProcessor.startCommandTask(mcuCmdProcessor);
+							if (usbFrameProcessor.connect()) {
+
 							}
 							break;
 						case BGSVC_USB_SCAN:
-							Intent usbDeviceListIntent = new Intent(BackgroundService.BGSVC_USB_DEVICE_LIST);
-							usbDeviceListIntent.putExtra(BGSVC_USB_DEVICE_LIST, usbProcessor.listUsbDevices());
+							Intent usbDeviceListIntent = new Intent(UsbBackgroundService.BGSVC_USB_DEVICE_LIST);
+							usbDeviceListIntent.putExtra(BGSVC_USB_DEVICE_LIST, usbFrameProcessor.listUsbDevices());
 							LocalBroadcastManager.getInstance(context).sendBroadcast(usbDeviceListIntent);
 							break;
 					}
@@ -82,9 +89,59 @@ public class BackgroundService extends Service {
 			}
 		};
 		IntentFilter intentFilter = new IntentFilter();
-		intentFilter.addAction(BackgroundService.BGSVC_USB_SCAN);
-		intentFilter.addAction(BackgroundService.BGSVC_USB_CONNECT);
+		intentFilter.addAction(UsbBackgroundService.BGSVC_USB_SCAN);
+		intentFilter.addAction(UsbBackgroundService.BGSVC_USB_CONNECT);
 		LocalBroadcastManager.getInstance(this).registerReceiver(receiver, intentFilter);
+
+		// Bind the PID controller to this USB frame processor so we can pass it messages.
+		pidServiceConnection = new ServiceConnection() {
+
+			public void onServiceConnected (ComponentName className,
+			                                IBinder service){
+				binder = (PidControllerService.PidControllerBinder) service;
+				pidControllerService = binder.getService();
+				pidServiceIsBound = true;
+			}
+
+			public void onServiceDisconnected(ComponentName arg0) {
+				pidServiceIsBound = false;
+			}
+		};
+	}
+
+	public Boolean isCommandTaskRunning() {
+		return isCmdTaskRunning;
+	}
+
+	public void startCommandTask() {
+		if (isCmdTaskRunning == false) {
+			isCmdTaskRunning = true;
+			Thread usbThread = new Thread("USB frame processor") {
+				public void run() {
+					byte frameBytes[];
+					while (isCmdTaskRunning) {
+						frameBytes = usbFrameProcessor.receiveFrame();
+						if (frameBytes.length > 0) {
+							try {
+								McuCmdMsg.McuWrapperMessage mcuCmd = McuCmdMsg.McuWrapperMessage.parseFrom(frameBytes);
+								if (pidServiceIsBound) {
+									Log.d(TAG, "PID controller not bound");
+								} else if (!pidControllerService.processMcuCommand(mcuCmd)) {
+									Log.d(TAG, "Invalid Mcu command on USB");
+								}
+							} catch (InvalidProtocolBufferNanoException e) {
+								e.printStackTrace();
+							}
+						}
+					}
+				}
+			};
+			usbThread.start();
+		}
+	}
+
+	public void stopCommandTask() {
+		isCmdTaskRunning = false;
 	}
 
 	@Override

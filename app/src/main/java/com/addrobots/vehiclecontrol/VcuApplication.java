@@ -83,10 +83,10 @@ public class VcuApplication extends Application {
 	}
 
 	public void startService() {
-		startService(new Intent(this.getBaseContext(), BackgroundService.class));
+		startService(new Intent(this.getBaseContext(), UsbBackgroundService.class));
 	}
 
 	public void stopService() {
-		stopService(new Intent(this.getBaseContext(), BackgroundService.class));
+		stopService(new Intent(this.getBaseContext(), UsbBackgroundService.class));
 	}
 }

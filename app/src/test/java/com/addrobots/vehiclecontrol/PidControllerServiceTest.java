@@ -28,63 +28,74 @@
  */
 package com.addrobots.vehiclecontrol;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.hardware.usb.UsbDevice;
-import android.hardware.usb.UsbDeviceConnection;
-import android.hardware.usb.UsbManager;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.support.v4.content.LocalBroadcastManager;
+import android.test.RenamingDelegatingContext;
+
+import com.addrobots.protobuf.McuCmdMsg;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.robolectric.Robolectric;
 import org.robolectric.RobolectricTestRunner;
-import org.robolectric.annotation.Config;
 
-import java.util.HashMap;
-
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-@Config(manifest = "src/test/resources/robolectric/AndroidManifest.xml")
 @RunWith(RobolectricTestRunner.class)
-public class UsbProcessorTest {
+public class PidControllerServiceTest {
 
-	private UsbProcessor usbProcessor;
+	private Boolean ofxBroadcastSeen = false;
+	private Boolean ofyBroadcastSeen = false;
+	private Boolean ofqBroadcastSeen = false;
 
-	private final VcuActivity vcuActivity = mock(VcuActivity.class);
-	private final Context context = mock(Context.class);
-	private final UsbDevice usbDevice = mock(UsbDevice.class);
-	private final UsbManager usbManager = mock(UsbManager.class);
-	private final UsbDeviceConnection usbDeviceConnection = mock(UsbDeviceConnection.class);
+	private Context context;
+	private PidControllerService pidControllerService;
 
 	@Before
-	public void setUp() throws Exception {
-		when(vcuActivity.getApplicationContext()).thenReturn(context);
-		when(context.getSystemService(Context.USB_SERVICE)).thenReturn(usbManager);
-		usbProcessor = new UsbProcessor(vcuActivity.getApplicationContext());
+	public void init() {
+		context = Robolectric.application.getApplicationContext(); //mock(Context.class);
+		pidControllerService = new PidControllerService(context);
 	}
-
-	@Mock
-	McuCmdProcessor mcuCmdProcessor;
 
 	@Test
 	public void testUsbProcessor() throws Exception {
 
-		HashMap<String, UsbDevice> deviceList = new HashMap<String, UsbDevice>();
-		deviceList.put("Test", usbDevice);
-		when(usbManager.getDeviceList()).thenReturn(deviceList);
-		when(usbManager.openDevice(usbDevice)).thenReturn(usbDeviceConnection);
+		BroadcastReceiver receiver = new BroadcastReceiver() {
+			@Override
+			public void onReceive(Context context, Intent intent) {
+				switch (intent.getAction()) {
+					case VcuActivity.VCU_X_SENSOR_DATA:
+						ofxBroadcastSeen = true;
+						break;
+					case VcuActivity.VCU_Y_SENSOR_DATA:
+						ofyBroadcastSeen = true;
+						break;
+					case VcuActivity.VCU_Q_SENSOR_DATA:
+						ofqBroadcastSeen = true;
+						break;
+				}
+			}
+		};
 
-		usbProcessor.connect();
-		assertTrue(usbProcessor.isConnected());
-		usbProcessor.disconnect();
-		assertFalse(usbProcessor.isConnected());
+		IntentFilter intentFilter = new IntentFilter();
+		intentFilter.addAction(VcuActivity.VCU_CLEAR_SENSOR_DATA);
+		intentFilter.addAction(VcuActivity.VCU_X_SENSOR_DATA);
+		intentFilter.addAction(VcuActivity.VCU_Y_SENSOR_DATA);
+		intentFilter.addAction(VcuActivity.VCU_Q_SENSOR_DATA);
+		intentFilter.addAction(UsbBackgroundService.BGSVC_USB_DEVICE_LIST);
+		LocalBroadcastManager.getInstance(context).registerReceiver(receiver, intentFilter);
 
-		usbProcessor.startCommandTask(mcuCmdProcessor);
-		assertTrue(usbProcessor.isCommandTaskRunning());
-		usbProcessor.stopCommandTask();
-		assertFalse(usbProcessor.isCommandTaskRunning());
+		// Test a OFX sensor command from raw bytes.
+		byte[] cmdBytes = {0x12, 0x11, 0x0A, 0x03, 0x4F, 0x46, 0x58, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, (byte) 0xF0, 0x3F, 0x1A, 0x01, 0x50};
+		McuCmdMsg.McuWrapperMessage mcuCmd = McuCmdMsg.McuWrapperMessage.parseFrom(cmdBytes);
+		assertTrue(pidControllerService.processMcuCommand(mcuCmd));
+		assertTrue(ofxBroadcastSeen);
 	}
 }

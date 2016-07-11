@@ -29,22 +29,52 @@ package com.addrobots.vehiclecontrol;
 
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.media.RingtoneManager;
 import android.net.Uri;
+import android.os.IBinder;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
+import com.addrobots.protobuf.McuCmdMsg;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
+import com.google.protobuf.nano.InvalidProtocolBufferNanoException;
 
 import java.util.Map;
 
 public class FirebaseMsgService extends FirebaseMessagingService {
 
     private static final String TAG = "FirebaseMsgService";
+	private static final String VCU_CMD_TAG = "VCU_CMD";
+
+	private ServiceConnection pidServiceConnection;
+	private PidControllerService pidControllerService;
+	boolean pidServiceIsBound = false;
+
+	@Override
+	public void onCreate() {
+		super.onCreate();
+		// Bind the PID controller to this USB frame processor so we can pass it messages.
+		pidServiceConnection = new ServiceConnection() {
+
+			public void onServiceConnected (ComponentName className,
+			                                IBinder service){
+				PidControllerService.PidControllerBinder binder = (PidControllerService.PidControllerBinder) service;
+				pidControllerService = binder.getService();
+				pidServiceIsBound = true;
+			}
+
+			public void onServiceDisconnected(ComponentName arg0) {
+				pidServiceIsBound = false;
+			}
+		};
+
+	}
 
     @Override
     public void onMessageReceived(RemoteMessage remoteMessage) {
@@ -52,6 +82,18 @@ public class FirebaseMsgService extends FirebaseMessagingService {
         String body = notification.getBody();
 	    Map<String, String> dataMap = remoteMessage.getData();
 	    for (String data: dataMap.keySet()) {
+		    if (data.equals(VCU_CMD_TAG)) {
+			    try {
+				    McuCmdMsg.McuWrapperMessage mcuCmd = McuCmdMsg.McuWrapperMessage.parseFrom(dataMap.get(data).getBytes());
+				    if (pidServiceIsBound) {
+					    Log.d(TAG, "PID controller not bound");
+				    } else if (!pidControllerService.processMcuCommand(mcuCmd)) {
+					    Log.d(TAG, "Invalid Mcu command on USB");
+				    }
+			    } catch (InvalidProtocolBufferNanoException e) {
+				    e.printStackTrace();
+			    }
+		    }
 		    Log.d(TAG, data);
 		    Log.d(TAG, dataMap.get(data));
 	    }
@@ -62,9 +104,6 @@ public class FirebaseMsgService extends FirebaseMessagingService {
         Log.d(TAG, "From: " + remoteMessage.getFrom());
         Log.d(TAG, "Notification Message Body: " + body);
 
-//	    Intent intent = new Intent(VcuActivity.FCM_MSG_INTENT);
-//	    intent.putExtra("message", "This is my message!");
-//	    LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
     }
 
     private void sendNotification(String messageBody) {
