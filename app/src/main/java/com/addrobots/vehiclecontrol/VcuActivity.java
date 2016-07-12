@@ -78,13 +78,13 @@ public class VcuActivity extends AppCompatActivity {
 						sensorQText.setText("");
 						break;
 					case VcuActivity.VCU_X_SENSOR_DATA:
-						sensorXText.setText(intent.getStringExtra(VcuActivity.VCU_X_SENSOR_DATA));
+						sensorXText.append(intent.getStringExtra(VcuActivity.VCU_X_SENSOR_DATA));
 						break;
 					case VcuActivity.VCU_Y_SENSOR_DATA:
-						sensorXText.setText(intent.getStringExtra(VcuActivity.VCU_Y_SENSOR_DATA));
+						sensorYText.append(intent.getStringExtra(VcuActivity.VCU_Y_SENSOR_DATA));
 						break;
 					case VcuActivity.VCU_Q_SENSOR_DATA:
-						sensorXText.setText(intent.getStringExtra(VcuActivity.VCU_Q_SENSOR_DATA));
+						sensorQText.append(intent.getStringExtra(VcuActivity.VCU_Q_SENSOR_DATA));
 						break;
 				}
 			}

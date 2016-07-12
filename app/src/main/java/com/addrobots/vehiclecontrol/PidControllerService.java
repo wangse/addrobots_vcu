@@ -44,15 +44,15 @@ public class PidControllerService extends Service {
 	private final IBinder binder = new PidControllerBinder();
 	private VcuCmdMsg.VcuWrapperMessage activeVcuCommand;
 
+	public PidControllerService() {
+		context = this;
+	}
+
 	// This class allows us to bind the USB frame processor and Firebase Cloud Messaging.
 	public class PidControllerBinder extends Binder {
 		PidControllerService getService() {
 			return PidControllerService.this;
 		}
-	}
-
-	public PidControllerService(Context context) {
-		this.context = context;
 	}
 
 	public Boolean processVcuCommand(VcuCmdMsg.VcuWrapperMessage vcuCmd) {
@@ -83,7 +83,7 @@ public class PidControllerService extends Service {
 			case McuCmdMsg.McuWrapperMessage.SENSORCMD_FIELD_NUMBER:
 				if (mcuCmd.hasSensorCmd()) {
 					result = true;
-					if ((messagesRcvd % 90) == 0) {
+					if ((messagesRcvd % 60) == 0) {
 						intent = new Intent(VcuActivity.VCU_CLEAR_SENSOR_DATA);
 						LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
 
@@ -91,15 +91,15 @@ public class PidControllerService extends Service {
 					McuCmdMsg.SensorCmd sensorCmd = mcuCmd.getSensorCmd();
 					if (sensorCmd.name.equals("OFX")) {
 						intent = new Intent(VcuActivity.VCU_X_SENSOR_DATA);
-						intent.putExtra(VcuActivity.VCU_X_SENSOR_DATA, "\n" + sensorCmd.value);
+						intent.putExtra(VcuActivity.VCU_X_SENSOR_DATA, "\n" + messagesRcvd);//sensorCmd.value);
 						LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
 					} else if (sensorCmd.name.equals("OFY")) {
 						intent = new Intent(VcuActivity.VCU_Y_SENSOR_DATA);
-						intent.putExtra(VcuActivity.VCU_Y_SENSOR_DATA, "\n" + sensorCmd.value);
+						intent.putExtra(VcuActivity.VCU_Y_SENSOR_DATA, "\n" + messagesRcvd);//sensorCmd.value);
 						LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
 					} else if (sensorCmd.name.equals("OFQ")) {
 						intent = new Intent(VcuActivity.VCU_Q_SENSOR_DATA);
-						intent.putExtra(VcuActivity.VCU_Q_SENSOR_DATA, "\n" + sensorCmd.value);
+						intent.putExtra(VcuActivity.VCU_Q_SENSOR_DATA, "\n" + messagesRcvd);//sensorCmd.value);
 						LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
 					}
 				}
@@ -111,6 +111,7 @@ public class PidControllerService extends Service {
 	@Override
 	public void onCreate() {
 		super.onCreate();
+		context = this.getApplicationContext();
 	}
 
 	@Override

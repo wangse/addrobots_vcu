@@ -79,14 +79,17 @@ public class VcuApplication extends Application {
 	@Override
 	public void onTerminate() {
 		super.onTerminate();
-		stopService();;
+		stopService();
+		;
 	}
 
 	public void startService() {
+		startService(new Intent(this.getBaseContext(), PidControllerService.class));
 		startService(new Intent(this.getBaseContext(), UsbBackgroundService.class));
 	}
 
 	public void stopService() {
+		stopService(new Intent(this.getBaseContext(), PidControllerService.class));
 		stopService(new Intent(this.getBaseContext(), UsbBackgroundService.class));
 	}
 }

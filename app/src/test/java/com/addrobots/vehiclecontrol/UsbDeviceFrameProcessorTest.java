@@ -36,7 +36,6 @@ import android.hardware.usb.UsbManager;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mock;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.annotation.Config;
 
@@ -51,9 +50,9 @@ import static org.mockito.Mockito.when;
 
 @Config(manifest = "src/test/resources/robolectric/AndroidManifest.xml")
 @RunWith(RobolectricTestRunner.class)
-public class UsbFrameProcessorTest {
+public class UsbDeviceFrameProcessorTest {
 
-	private UsbFrameProcessor usbFrameProcessor;
+	private UsbDeviceFrameProcessor usbDeviceFrameProcessor;
 
 	private final VcuActivity vcuActivity = mock(VcuActivity.class);
 	private final Context context = mock(Context.class);
@@ -65,7 +64,7 @@ public class UsbFrameProcessorTest {
 	public void setUp() throws Exception {
 		when(vcuActivity.getApplicationContext()).thenReturn(context);
 		when(context.getSystemService(Context.USB_SERVICE)).thenReturn(usbManager);
-		usbFrameProcessor = new UsbFrameProcessor(vcuActivity.getApplicationContext());
+		usbDeviceFrameProcessor = new UsbDeviceFrameProcessor(vcuActivity.getApplicationContext(), usbManager, usbDevice);
 	}
 
 	@Test
@@ -77,10 +76,10 @@ public class UsbFrameProcessorTest {
 		when(usbManager.getDeviceList()).thenReturn(deviceList);
 		when(usbManager.openDevice(usbDevice)).thenReturn(usbDeviceConnection);
 
-		usbFrameProcessor.connect();
-		assertTrue(usbFrameProcessor.isConnected());
-		usbFrameProcessor.disconnect();
-		assertFalse(usbFrameProcessor.isConnected());
+		usbDeviceFrameProcessor.connect();
+		assertTrue(usbDeviceFrameProcessor.isConnected());
+		usbDeviceFrameProcessor.disconnect();
+		assertFalse(usbDeviceFrameProcessor.isConnected());
 
 	}
 
@@ -98,21 +97,21 @@ public class UsbFrameProcessorTest {
 		byte[] frameBytes = new byte[cmdBytes.length + 5];
 		System.arraycopy(cmdBytes, 0, frameBytes, 0, cmdBytes.length);
 		// Add a frame end, and a few extra bytes to not invoke internal bulkTransfer calls.
-		frameBytes[cmdBytes.length] = UsbFrameProcessor.END;
-		frameBytes[cmdBytes.length + 1] = UsbFrameProcessor.END;
-		frameBytes[cmdBytes.length + 2] = UsbFrameProcessor.END;
+		frameBytes[cmdBytes.length] = UsbDeviceFrameProcessor.END;
+		frameBytes[cmdBytes.length + 1] = UsbDeviceFrameProcessor.END;
+		frameBytes[cmdBytes.length + 2] = UsbDeviceFrameProcessor.END;
 
 		try {
-			Field field = UsbFrameProcessor.class.getDeclaredField("recvBuffer");
+			Field field = UsbDeviceFrameProcessor.class.getDeclaredField("recvBuffer");
 			field.setAccessible(true);
-			field.set(usbFrameProcessor, frameBytes);
+			field.set(usbDeviceFrameProcessor, frameBytes);
 
-			field = UsbFrameProcessor.class.getDeclaredField("recvBufferSize");
+			field = UsbDeviceFrameProcessor.class.getDeclaredField("recvBufferSize");
 			field.setAccessible(true);
-			field.set(usbFrameProcessor, frameBytes.length);
+			field.set(usbDeviceFrameProcessor, frameBytes.length);
 
-			usbFrameProcessor.connect();
-			byte[] frame = usbFrameProcessor.receiveFrame();
+			usbDeviceFrameProcessor.connect();
+			byte[] frame = usbDeviceFrameProcessor.receiveFrame();
 			assertArrayEquals(frame, cmdBytes);
 		} catch (NoSuchFieldException e) {
 			e.printStackTrace();

@@ -61,7 +61,7 @@ public class PidControllerServiceTest {
 	@Before
 	public void init() {
 		context = Robolectric.application.getApplicationContext(); //mock(Context.class);
-		pidControllerService = new PidControllerService(context);
+		pidControllerService = new PidControllerService();
 	}
 
 	@Test

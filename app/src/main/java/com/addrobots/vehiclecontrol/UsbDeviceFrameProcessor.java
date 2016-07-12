@@ -26,37 +26,25 @@
 */
 package com.addrobots.vehiclecontrol;
 
-import android.app.PendingIntent;
-import android.content.BroadcastReceiver;
-import android.content.ComponentName;
 import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
-import android.content.ServiceConnection;
 import android.hardware.usb.UsbConstants;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbEndpoint;
 import android.hardware.usb.UsbInterface;
 import android.hardware.usb.UsbManager;
-import android.os.IBinder;
 import android.util.Log;
 
-import com.addrobots.protobuf.McuCmdMsg;
-import com.google.protobuf.nano.InvalidProtocolBufferNanoException;
-
 import java.io.ByteArrayOutputStream;
-import java.util.HashMap;
-import java.util.Iterator;
 
-public class UsbFrameProcessor {
+public class UsbDeviceFrameProcessor {
 
 	public static final byte END = (byte) 0xC0;                        //0300; /* indicates end of packet */
 	public static final byte ESC = (byte) 0xDB;                        //0333; /* indicates byte stuffing */
 	public static final byte ESC_END = (byte) 0xDC;                        //0334; /* ESC ESC_END means END data byte */
 	public static final byte ESC_ESC = (byte) 0xDD;                        //0335; /* ESC ESC_ESC means ESC data byte */
 
-	private static final String TAG = "UsbFrameProcessor";
+	private static final String TAG = "UsbDeviceFrameProcessor";
 	private static final String ACTION_USB_PERMISSION = "USB_PERMISSION";
 
 	private static final int USB_RECIP_INTERFACE = 0x01;
@@ -67,51 +55,57 @@ public class UsbFrameProcessor {
 	private Boolean isConnected = false;
 	private UsbManager usbManager;
 	private UsbDevice usbDevice;
-	private BroadcastReceiver usbReceiver;
-	private UsbInterface intf = null;
+	private UsbInterface usbInterface;
 	private UsbEndpoint input, output;
-	private UsbDeviceConnection connection;
-	private PendingIntent permissionIntent;
+	private UsbDeviceConnection usbDeviceConnection;
 	private Context context;
 	private byte[] recvBuffer = new byte[MAX_FRAME_BYTES];
 	private int recvBufferSize;
 	private int recvBufferOffset;
 
-	public UsbFrameProcessor(Context context) {
+	public UsbDeviceFrameProcessor(Context context, UsbManager usbManager, UsbDevice usbDevice) {
 		this.context = context;
-		usbManager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
-
-		// Ask permission from user to use the usb device
-		permissionIntent = PendingIntent.getBroadcast(context, 0, new Intent(ACTION_USB_PERMISSION), 0);
-		IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
-		context.registerReceiver(usbReceiver, filter);
-
-		// Setup the USB receiver.
-		setupUsbReceiver();
+		this.usbDevice = usbDevice;
+		this.usbManager = usbManager;
+		// Request permission to access the device.
+		setupConnection();
 	}
 
 	public Boolean connect() {
 		Boolean result = true;
-		// check if there's a connected usb device
-		if ((usbManager == null) || (usbManager.getDeviceList() == null) || (usbManager.getDeviceList().isEmpty())) {
-			Log.d(TAG, "No connected devices");
-			result = false;
-			return result;
-		}
 
-		// get the first (only) connected device
-		usbDevice = usbManager.getDeviceList().values().iterator().next();
+		usbDeviceConnection = usbManager.openDevice(usbDevice);
+		usbDeviceConnection.claimInterface(usbInterface, true);
 
-		// user must approve of connection
-		usbManager.requestPermission(usbDevice, permissionIntent);
+		// set flow control to 8N1 at 115200 baud
+		int baudRate = 115200;
+		byte stopBitsByte = 1;
+		byte parityBitesByte = 0;
+		byte dataBits = 8;
+		byte[] msg = {
+				(byte) (baudRate & 0xff),
+				(byte) ((baudRate >> 8) & 0xff),
+				(byte) ((baudRate >> 16) & 0xff),
+				(byte) ((baudRate >> 24) & 0xff),
+				stopBitsByte,
+				parityBitesByte,
+				(byte) dataBits
+		};
+
+		usbDeviceConnection.controlTransfer(UsbConstants.USB_TYPE_CLASS | 0x01, 0x20, 0, 0, msg, msg.length, 5000);
+		usbDeviceConnection.controlTransfer(0x21, 0x22, 0x1, 0, null, 0, 0);
 
 		isConnected = true;
 		return result;
 	}
 
 	public void disconnect() {
+		if (usbDeviceConnection != null) {
+			usbDeviceConnection.close();
+			usbDeviceConnection.releaseInterface(usbInterface);
+			usbDeviceConnection = null;
+		}
 		isConnected = false;
-		context.unregisterReceiver(usbReceiver);
 	}
 
 	public Boolean isConnected() {
@@ -217,7 +211,7 @@ public class UsbFrameProcessor {
 		synchronized (this) {
 			while (sentBytes < len) {
 				// send data to usb device
-				sentBytes += connection.bulkTransfer(output, data, sentBytes, data.length, 1000);
+				sentBytes += usbDeviceConnection.bulkTransfer(output, data, sentBytes, data.length, 1000);
 			}
 		}
 
@@ -229,131 +223,23 @@ public class UsbFrameProcessor {
 			// wait for some data from the mcu
 			recvBufferOffset = 0;
 			recvBufferSize = 0;
-			while (recvBufferSize < 1) {
-				recvBufferSize = connection.bulkTransfer(input, recvBuffer, recvBufferOffset, recvBuffer.length - recvBufferOffset, 3000);
-			}
-		}
-
-		return recvBuffer[recvBufferOffset++];
-	}
-
-	public String listUsbDevices() {
-
-		HashMap<String, UsbDevice> deviceList = usbManager.getDeviceList();
-
-		if (deviceList.size() == 0) {
-			return "no usb devices found";
-		}
-
-		Iterator<UsbDevice> deviceIterator = deviceList.values().iterator();
-		String returnValue = "";
-		UsbInterface usbInterface;
-
-		while (deviceIterator.hasNext()) {
-			UsbDevice device = deviceIterator.next();
-			returnValue += "Name: " + device.getDeviceName();
-			returnValue += "\nID: " + device.getDeviceId();
-			returnValue += "\nProtocol: " + device.getDeviceProtocol();
-			returnValue += "\nClass: " + device.getDeviceClass();
-			returnValue += "\nSubclass: " + device.getDeviceSubclass();
-			returnValue += "\nProduct ID: " + device.getProductId();
-			returnValue += "\nVendor ID: " + device.getVendorId();
-			returnValue += "\nMfg Name:" + device.getManufacturerName();
-			returnValue += "\nDevice Name:" + device.getDeviceName();
-			returnValue += "\nProduct Name:" + device.getProductName();
-			returnValue += "\nInterface count: " + device.getInterfaceCount();
-
-			for (int i = 0; i < device.getInterfaceCount(); i++) {
-				usbInterface = device.getInterface(i);
-				returnValue += "\n  Interface " + i;
-				returnValue += "\n\tInterface ID: " + usbInterface.getId();
-				returnValue += "\n\tClass: " + usbInterface.getInterfaceClass();
-				returnValue += "\n\tProtocol: " + usbInterface.getInterfaceProtocol();
-				returnValue += "\n\tSubclass: " + usbInterface.getInterfaceSubclass();
-				returnValue += "\n\tEndpoint count: " + usbInterface.getEndpointCount();
-
-				for (int j = 0; j < usbInterface.getEndpointCount(); j++) {
-					returnValue += "\n\t  Endpoint " + j;
-					returnValue += "\n\t\tAddress: " + usbInterface.getEndpoint(j).getAddress();
-					returnValue += "\n\t\tAttributes: " + usbInterface.getEndpoint(j).getAttributes();
-					returnValue += "\n\t\tDirection: " + usbInterface.getEndpoint(j).getDirection();
-					returnValue += "\n\t\tNumber: " + usbInterface.getEndpoint(j).getEndpointNumber();
-					returnValue += "\n\t\tInterval: " + usbInterface.getEndpoint(j).getInterval();
-					returnValue += "\n\t\tType: " + usbInterface.getEndpoint(j).getType();
-					returnValue += "\n\t\tMax packet size: " + usbInterface.getEndpoint(j).getMaxPacketSize();
+			while ((isConnected) && (recvBufferSize < 1)) {
+				if (usbDeviceConnection != null) {
+					recvBufferSize = usbDeviceConnection.bulkTransfer(input, recvBuffer, recvBufferOffset, recvBuffer.length - recvBufferOffset, 1000);
 				}
 			}
 		}
 
-		return returnValue;
-	}
-
-	private void setupConnection() {
-		// find the right interface
-		for (int i = 0; i < usbDevice.getInterfaceCount(); i++) {
-			// communications device class (CDC) type device
-			if (usbDevice.getInterface(i).getInterfaceClass() == UsbConstants.USB_CLASS_CDC_DATA) {
-				intf = usbDevice.getInterface(i);
-
-				// find the endpoints
-				for (int j = 0; j < intf.getEndpointCount(); j++) {
-					if (intf.getEndpoint(j).getDirection() == UsbConstants.USB_DIR_OUT && intf.getEndpoint(j).getType() == UsbConstants.USB_ENDPOINT_XFER_BULK) {
-						// from android to device
-						output = intf.getEndpoint(j);
-					}
-
-					if (intf.getEndpoint(j).getDirection() == UsbConstants.USB_DIR_IN && intf.getEndpoint(j).getType() == UsbConstants.USB_ENDPOINT_XFER_BULK) {
-						// from device to android
-						input = intf.getEndpoint(j);
-					}
-				}
-			}
+		if (isConnected) {
+			return recvBuffer[recvBufferOffset++];
+		} else {
+			// Might as well make it a frame end.
+			return END;
 		}
-	}
-
-	private void setupUsbReceiver() {
-		usbReceiver = new BroadcastReceiver() {
-			public void onReceive(Context context, Intent intent) {
-				String action = intent.getAction();
-				if (ACTION_USB_PERMISSION.equals(action)) {
-					// broadcast is like an interrupt and works asynchronously with the class, it must be synced just in case
-					synchronized (this) {
-						if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
-							setupConnection();
-
-							connection = usbManager.openDevice(usbDevice);
-							connection.claimInterface(intf, true);
-
-							// set flow control to 8N1 at 115200 baud
-							int baudRate = 115200;
-							byte stopBitsByte = 1;
-							byte parityBitesByte = 0;
-							byte dataBits = 8;
-							byte[] msg = {
-									(byte) (baudRate & 0xff),
-									(byte) ((baudRate >> 8) & 0xff),
-									(byte) ((baudRate >> 16) & 0xff),
-									(byte) ((baudRate >> 24) & 0xff),
-									stopBitsByte,
-									parityBitesByte,
-									(byte) dataBits
-							};
-
-							connection.controlTransfer(UsbConstants.USB_TYPE_CLASS | 0x01, 0x20, 0, 0, msg, msg.length, 5000);
-							connection.controlTransfer(0x21, 0x22, 0x1, 0, null, 0, 0);
-						} else {
-							Log.d(TAG, "Permission denied for USB device");
-						}
-					}
-				} else if (UsbManager.ACTION_USB_DEVICE_DETACHED.equals(action)) {
-					Log.d(TAG, "USB device detached");
-				}
-			}
-		};
 	}
 
 	private int sendAcmControlMessage(int request, int value, byte[] buf) {
-		return connection.controlTransfer(USB_RT_ACM, request, value, 0, buf, buf != null ? buf.length : 0, 5000);
+		return usbDeviceConnection.controlTransfer(USB_RT_ACM, request, value, 0, buf, buf != null ? buf.length : 0, 5000);
 	}
 
 	private int setAcmLineCoding(int bitRate, int stopBits, int parity, int dataBits) {
@@ -367,6 +253,29 @@ public class UsbFrameProcessor {
 				(byte) parity,
 				(byte) dataBits};
 		return sendAcmControlMessage(SET_LINE_CODING, 0, msg);
+	}
+
+	private void setupConnection() {
+		// find the right interface
+		for (int i = 0; i < usbDevice.getInterfaceCount(); i++) {
+			// communications device class (CDC) type device
+			if (usbDevice.getInterface(i).getInterfaceClass() == UsbConstants.USB_CLASS_CDC_DATA) {
+				usbInterface = usbDevice.getInterface(i);
+
+				// find the endpoints
+				for (int j = 0; j < usbInterface.getEndpointCount(); j++) {
+					if (usbInterface.getEndpoint(j).getDirection() == UsbConstants.USB_DIR_OUT && usbInterface.getEndpoint(j).getType() == UsbConstants.USB_ENDPOINT_XFER_BULK) {
+						// from android to device
+						output = usbInterface.getEndpoint(j);
+					}
+
+					if (usbInterface.getEndpoint(j).getDirection() == UsbConstants.USB_DIR_IN && usbInterface.getEndpoint(j).getType() == UsbConstants.USB_ENDPOINT_XFER_BULK) {
+						// from device to android
+						input = usbInterface.getEndpoint(j);
+					}
+				}
+			}
+		}
 	}
 
 	private void hexDumpArray(byte[] inByteArray) {

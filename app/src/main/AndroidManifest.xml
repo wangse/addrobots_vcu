@@ -3,12 +3,12 @@
           xmlns:android="http://schemas.android.com/apk/res/android">
 
 	<application
+		android:name="VcuApplication"
 		android:allowBackup="true"
 		android:icon="@mipmap/ic_launcher"
 		android:label="@string/app_name"
 		android:supportsRtl="true"
-		android:theme="@style/AppTheme"
-		android:name="VcuApplication">
+		android:theme="@style/AppTheme">
 
 		<uses-feature
 			android:name="android.hardware.usb.host"
@@ -19,9 +19,6 @@
 				<action android:name="android.intent.action.MAIN"/>
 				<category android:name="android.intent.category.LAUNCHER"/>
 			</intent-filter>
-			<!--<intent-filter>
-				<action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"/>
-			</intent-filter>-->
 			<meta-data
 				android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
 				android:resource="@xml/device_filter"/>
@@ -39,12 +36,22 @@
 			</intent-filter>
 		</service>
 		<service
+			android:name=".PidControllerService"
+			android:enabled="true"
+			android:exported="false">
+			<intent-filter>
+				<action android:name="android.intent.action.MAIN"/>
+				<category android:name="android.intent.category.LAUNCHER"/>
+			</intent-filter>
+		</service>
+		<service
 			android:name=".UsbBackgroundService"
 			android:enabled="true"
 			android:exported="false">
 			<intent-filter>
-				<action android:name="android.intent.action.MAIN" />
-				<category android:name="android.intent.category.LAUNCHER" />
+				<action android:name="android.intent.action.MAIN"/>
+				<action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"/>
+				<!--<category android:name="android.intent.category.LAUNCHER"/>-->
 			</intent-filter>
 		</service>
 	</application>
