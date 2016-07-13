@@ -3,6 +3,6 @@
 <resources>
 	<!-- 0x2504 / 0x0300: AddRobots MCU -->
 	<usb-device
-		product-id="1"
-		vendor-id="9025"/>
+		product-id="@integer/bot_v1_usb_prodid"
+		vendor-id="@integer/add_robots_usb_vendorid"/>
 </resources>

@@ -1,10 +1,7 @@
 <resources>
 	<string name="subscribe_button">Suscribe</string>
 	<string name="log_token_button">Log Token</string>
-	<string name="app_name">VehicleControl</string>
-	<string name="scan_usb_button">Scan Usb</string>
-	<string name="usb_connect_button">Connect Usb</string>
-	<string name="usb_send_button">Send</string>
+	<string name="app_name">AddRobots</string>
 	<string name="usb_info_textview">Usb Device Info</string>
 	<string name="sensor_x_textview">X</string>
 	<string name="sensor_y_textview">Y</string>

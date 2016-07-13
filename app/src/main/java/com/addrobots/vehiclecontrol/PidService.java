@@ -31,27 +31,26 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Binder;
 import android.os.IBinder;
-import android.support.annotation.Nullable;
 import android.support.v4.content.LocalBroadcastManager;
 
 import com.addrobots.protobuf.McuCmdMsg;
 import com.addrobots.protobuf.VcuCmdMsg;
 
-public class PidControllerService extends Service {
+public class PidService extends Service {
 
 	private Context context;
 	private int messagesRcvd;
-	private final IBinder binder = new PidControllerBinder();
+	private final IBinder pidServiceBinder = new PidServiceBinder();
 	private VcuCmdMsg.VcuWrapperMessage activeVcuCommand;
 
-	public PidControllerService() {
+	public PidService() {
 		context = this;
 	}
 
 	// This class allows us to bind the USB frame processor and Firebase Cloud Messaging.
-	public class PidControllerBinder extends Binder {
-		PidControllerService getService() {
-			return PidControllerService.this;
+	public class PidServiceBinder extends Binder {
+		PidService getService() {
+			return PidService.this;
 		}
 	}
 
@@ -121,6 +120,6 @@ public class PidControllerService extends Service {
 
 	@Override
 	public IBinder onBind(Intent intent) {
-		return binder;
+		return pidServiceBinder;
 	}
 }

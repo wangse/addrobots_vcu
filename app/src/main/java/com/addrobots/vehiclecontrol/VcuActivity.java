@@ -30,6 +30,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.hardware.usb.UsbManager;
 import android.os.Bundle;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
@@ -54,8 +55,6 @@ public class VcuActivity extends AppCompatActivity {
 	private BroadcastReceiver receiver;
 	private Button subscribeButton;
 	private Button logTokenButton;
-	private Button scanUsbButton;
-	private Button connectButton;
 	private TextView usbDeviceInfoText;
 	private TextView sensorXText;
 	private TextView sensorYText;
@@ -69,8 +68,8 @@ public class VcuActivity extends AppCompatActivity {
 			@Override
 			public void onReceive(Context context, Intent intent) {
 				switch (intent.getAction()) {
-					case UsbBackgroundService.BGSVC_USB_DEVICE_LIST:
-						usbDeviceInfoText.setText(intent.getStringExtra(UsbBackgroundService.BGSVC_USB_DEVICE_LIST));
+					case UsbService.BGSVC_USB_DEVICE_LIST:
+						usbDeviceInfoText.setText(intent.getStringExtra(UsbService.BGSVC_USB_DEVICE_LIST));
 						break;
 					case VcuActivity.VCU_CLEAR_SENSOR_DATA:
 						sensorXText.setText("");
@@ -98,23 +97,6 @@ public class VcuActivity extends AppCompatActivity {
 		sensorYText = (TextView) findViewById(R.id.sensor_y_textview);
 		sensorQText = (TextView) findViewById(R.id.sensor_q_textview);
 
-		scanUsbButton = (Button) findViewById(R.id.scan_usb_button);
-		scanUsbButton.setOnClickListener(new View.OnClickListener() {
-			@Override
-			public void onClick(View arg0) {
-				Intent intent = new Intent(UsbBackgroundService.BGSVC_USB_SCAN);
-				LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
-			}
-		});
-		connectButton = (Button) findViewById(R.id.usb_connect_button);
-		connectButton.setOnClickListener(new View.OnClickListener() {
-			@Override
-			public void onClick(View arg0) {
-				Intent intent = new Intent(UsbBackgroundService.BGSVC_USB_CONNECT);
-				LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
-			}
-		});
-
 		subscribeButton = (Button) findViewById(R.id.subscribe_button);
 		subscribeButton.setOnClickListener(new View.OnClickListener() {
 			@Override
@@ -138,13 +120,19 @@ public class VcuActivity extends AppCompatActivity {
 	@Override
 	protected void onResume() {
 		super.onResume();
+
 		IntentFilter intentFilter = new IntentFilter();
 		intentFilter.addAction(VcuActivity.VCU_CLEAR_SENSOR_DATA);
 		intentFilter.addAction(VcuActivity.VCU_X_SENSOR_DATA);
 		intentFilter.addAction(VcuActivity.VCU_Y_SENSOR_DATA);
 		intentFilter.addAction(VcuActivity.VCU_Q_SENSOR_DATA);
-		intentFilter.addAction(UsbBackgroundService.BGSVC_USB_DEVICE_LIST);
+		intentFilter.addAction(UsbService.BGSVC_USB_DEVICE_LIST);
 		LocalBroadcastManager.getInstance(this).registerReceiver(receiver, intentFilter);
+
+		Intent usbDeviceListIntent = new Intent(UsbService.BGSVC_USB_DEVICE_LIST);
+		UsbManager usbManager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
+		usbDeviceListIntent.putExtra(UsbService.BGSVC_USB_DEVICE_LIST, UsbService.listUsbDevices(usbManager));
+		LocalBroadcastManager.getInstance(this).sendBroadcast(usbDeviceListIntent);
 	}
 
 	@Override

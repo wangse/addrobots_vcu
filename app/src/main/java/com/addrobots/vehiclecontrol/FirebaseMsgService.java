@@ -37,7 +37,6 @@ import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.IBinder;
 import android.support.v4.app.NotificationCompat;
-import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
 import com.addrobots.protobuf.McuCmdMsg;
@@ -53,7 +52,7 @@ public class FirebaseMsgService extends FirebaseMessagingService {
 	private static final String VCU_CMD_TAG = "VCU_CMD";
 
 	private ServiceConnection pidServiceConnection;
-	private PidControllerService pidControllerService;
+	private PidService pidService;
 	boolean pidServiceIsBound = false;
 
 	@Override
@@ -64,8 +63,8 @@ public class FirebaseMsgService extends FirebaseMessagingService {
 
 			public void onServiceConnected (ComponentName className,
 			                                IBinder service){
-				PidControllerService.PidControllerBinder binder = (PidControllerService.PidControllerBinder) service;
-				pidControllerService = binder.getService();
+				PidService.PidServiceBinder binder = (PidService.PidServiceBinder) service;
+				pidService = binder.getService();
 				pidServiceIsBound = true;
 			}
 
@@ -87,7 +86,7 @@ public class FirebaseMsgService extends FirebaseMessagingService {
 				    McuCmdMsg.McuWrapperMessage mcuCmd = McuCmdMsg.McuWrapperMessage.parseFrom(dataMap.get(data).getBytes());
 				    if (pidServiceIsBound) {
 					    Log.d(TAG, "PID controller not bound");
-				    } else if (!pidControllerService.processMcuCommand(mcuCmd)) {
+				    } else if (!pidService.processMcuCommand(mcuCmd)) {
 					    Log.d(TAG, "Invalid Mcu command on USB");
 				    }
 			    } catch (InvalidProtocolBufferNanoException e) {

@@ -27,8 +27,12 @@
 package com.addrobots.vehiclecontrol;
 
 import android.app.Application;
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.content.res.Configuration;
+import android.os.IBinder;
 import android.util.Log;
 
 import com.google.firebase.FirebaseApp;
@@ -37,6 +41,11 @@ import com.google.firebase.FirebaseOptions;
 public class VcuApplication extends Application {
 
 	private static final String TAG = "VcuApplication";
+	private UsbService.UsbServiceBinder usbServiceBinder;
+	private ServiceConnection usbServiceConnection;
+	private UsbService usbService;
+	boolean usbServiceIsBound = false;
+
 
 	@Override
 	public void onConfigurationChanged(Configuration newConfig) {
@@ -80,16 +89,35 @@ public class VcuApplication extends Application {
 	public void onTerminate() {
 		super.onTerminate();
 		stopService();
-		;
 	}
 
+
 	public void startService() {
-		startService(new Intent(this.getBaseContext(), PidControllerService.class));
-		startService(new Intent(this.getBaseContext(), UsbBackgroundService.class));
+		startService(new Intent(this.getApplicationContext(), PidService.class));
+		startService(new Intent(this.getApplicationContext(), UsbService.class));
+
+		// We have to bind the USB service to *something* so that we can get it from a broadcastreceiver (later).
+		usbServiceConnection = new ServiceConnection() {
+
+			public void onServiceConnected(ComponentName className, IBinder service) {
+				if ((service != null) && (service.getClass().equals(UsbService.class))) {
+					usbServiceBinder = (UsbService.UsbServiceBinder) service;
+					usbService = usbServiceBinder.getService();
+					usbServiceIsBound = true;
+				}
+			}
+
+			public void onServiceDisconnected(ComponentName arg0) {
+				usbService = null;
+				usbServiceIsBound = false;
+			}
+		};
+		Intent intent = new Intent(this.getApplicationContext(), UsbService.class);
+		bindService(intent, usbServiceConnection, Context.BIND_AUTO_CREATE);
 	}
 
 	public void stopService() {
-		stopService(new Intent(this.getBaseContext(), PidControllerService.class));
-		stopService(new Intent(this.getBaseContext(), UsbBackgroundService.class));
+		stopService(new Intent(this.getBaseContext(), PidService.class));
+		stopService(new Intent(this.getBaseContext(), UsbService.class));
 	}
 }

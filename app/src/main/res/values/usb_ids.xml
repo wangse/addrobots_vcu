@@ -1,0 +1,4 @@
+<resources>
+	<integer name="bot_v1_usb_prodid">1</integer>
+	<integer name="add_robots_usb_vendorid">9025</integer>
+</resources>

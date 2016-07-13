@@ -38,23 +38,23 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 
-public class UsbBackgroundServiceTest {
+public class UsbServiceTest {
 
 	private Context context;
-	private UsbBackgroundService usbBackgroundService;
+	private UsbService usbService;
 
 	@Before
 	public void init() {
 		context = mock(Context.class);
-		usbBackgroundService = new UsbBackgroundService();
-		context.startService(new Intent(context, UsbBackgroundService.class));
+		usbService = new UsbService();
+		context.startService(new Intent(context, UsbService.class));
 	}
 
 	@Test
 	public void testUsbProcessor() throws Exception {
-		usbBackgroundService.startCommandTask();
-		assertTrue(usbBackgroundService.isCommandTaskRunning());
-		usbBackgroundService.stopCommandTask();
-		assertFalse(usbBackgroundService.isCommandTaskRunning());
+		usbService.startCommandTask();
+		assertTrue(usbService.isCommandTaskRunning());
+		usbService.stopCommandTask();
+		assertFalse(usbService.isCommandTaskRunning());
 	}
 }

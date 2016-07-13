@@ -33,35 +33,32 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.support.v4.content.LocalBroadcastManager;
-import android.test.RenamingDelegatingContext;
 
 import com.addrobots.protobuf.McuCmdMsg;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mock;
 import org.robolectric.Robolectric;
 import org.robolectric.RobolectricTestRunner;
 
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 @RunWith(RobolectricTestRunner.class)
-public class PidControllerServiceTest {
+public class PidServiceTest {
 
 	private Boolean ofxBroadcastSeen = false;
 	private Boolean ofyBroadcastSeen = false;
 	private Boolean ofqBroadcastSeen = false;
 
 	private Context context;
-	private PidControllerService pidControllerService;
+	private PidService pidService;
 
 	@Before
 	public void init() {
 		context = Robolectric.application.getApplicationContext(); //mock(Context.class);
-		pidControllerService = new PidControllerService();
+		pidService = new PidService();
 	}
 
 	@Test
@@ -89,13 +86,13 @@ public class PidControllerServiceTest {
 		intentFilter.addAction(VcuActivity.VCU_X_SENSOR_DATA);
 		intentFilter.addAction(VcuActivity.VCU_Y_SENSOR_DATA);
 		intentFilter.addAction(VcuActivity.VCU_Q_SENSOR_DATA);
-		intentFilter.addAction(UsbBackgroundService.BGSVC_USB_DEVICE_LIST);
+		intentFilter.addAction(UsbService.BGSVC_USB_DEVICE_LIST);
 		LocalBroadcastManager.getInstance(context).registerReceiver(receiver, intentFilter);
 
 		// Test a OFX sensor command from raw bytes.
 		byte[] cmdBytes = {0x12, 0x11, 0x0A, 0x03, 0x4F, 0x46, 0x58, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, (byte) 0xF0, 0x3F, 0x1A, 0x01, 0x50};
 		McuCmdMsg.McuWrapperMessage mcuCmd = McuCmdMsg.McuWrapperMessage.parseFrom(cmdBytes);
-		assertTrue(pidControllerService.processMcuCommand(mcuCmd));
+		assertTrue(pidService.processMcuCommand(mcuCmd));
 		assertTrue(ofxBroadcastSeen);
 	}
 }

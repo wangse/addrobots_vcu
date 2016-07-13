@@ -56,8 +56,8 @@ public class VcuActivityUiTest extends ActivityInstrumentationTestCase2<VcuActiv
 	public ActivityTestRule<VcuActivity> mActivityRule = new ActivityTestRule<>(VcuActivity.class);
 	
 	@Test
-	public void testUsbScanButtonEspresso() {
-		onView(withId(R.id.scan_usb_button))
+	public void testUsbSubscribeButtonEspresso() {
+		onView(withId(R.id.subscribe_button))
 				.perform(click())
 				.check(matches(isDisplayed()));
 	}

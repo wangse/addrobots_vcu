@@ -28,17 +28,15 @@
  */
 package com.addrobots.vehiclecontrol;
 
-import android.app.PendingIntent;
 import android.app.Service;
-import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbInterface;
 import android.hardware.usb.UsbManager;
+import android.os.Binder;
 import android.os.IBinder;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
@@ -49,30 +47,30 @@ import com.google.protobuf.nano.InvalidProtocolBufferNanoException;
 import java.util.HashMap;
 import java.util.Iterator;
 
-public class UsbBackgroundService extends Service {
+public class UsbService extends Service {
 
-	public static final String BGSVC_USB_CONNECT = "USB_CONNECT";
-	public static final String BGSVC_USB_SCAN = "USB_SCAN";
 	public static final String BGSVC_USB_DEVICE_LIST = "USB_DEVICE_LIST";
 
-	private static final String TAG = "UsbBackgroundService";
+	private static final String TAG = "UsbService";
 
 	private Boolean isCmdTaskRunning = false;
 	private int startMode;
-	private Context context;
-	private PidControllerService.PidControllerBinder binder;
 	private boolean allowRebind;
-	private BroadcastReceiver receiver;
-	private UsbManager usbManager;
-	private UsbDevice usbDevice;
 	private UsbDeviceFrameProcessor usbDeviceFrameProcessor;
-	private BroadcastReceiver usbBroadcastReceiver;
-	private PendingIntent permissionIntent;
+	private PidService.PidServiceBinder pidServiceBinder;
+
+	private final IBinder usbServiceBinder = new UsbServiceBinder();
+
 	private ServiceConnection pidServiceConnection;
-	private PidControllerService pidControllerService;
+	private PidService pidService;
 	boolean pidServiceIsBound = false;
 
-	private static final String ACTION_USB_PERMISSION = "com.addrobots.vehiclecontrol.USB_PERMISSION";
+	// This class allows us to bind the USB frame processor and Firebase Cloud Messaging.
+	public class UsbServiceBinder extends Binder {
+		UsbService getService() {
+			return UsbService.this;
+		}
+	}
 
 	public Boolean isCommandTaskRunning() {
 		return isCmdTaskRunning;
@@ -83,7 +81,7 @@ public class UsbBackgroundService extends Service {
 			isCmdTaskRunning = true;
 
 			// Bind to the PID service so that we can send it messages.
-			Intent intent = new Intent(this, PidControllerService.class);
+			Intent intent = new Intent(this, PidService.class);
 			bindService(intent, pidServiceConnection, Context.BIND_AUTO_CREATE);
 
 			Thread usbThread = new Thread("USB frame processor") {
@@ -96,7 +94,7 @@ public class UsbBackgroundService extends Service {
 								McuCmdMsg.McuWrapperMessage mcuCmd = McuCmdMsg.McuWrapperMessage.parseFrom(frameBytes);
 								if (!pidServiceIsBound) {
 									Log.d(TAG, "PID controller not bound");
-								} else if (!pidControllerService.processMcuCommand(mcuCmd)) {
+								} else if (!pidService.processMcuCommand(mcuCmd)) {
 									Log.d(TAG, "Invalid Mcu command on USB");
 								}
 							} catch (InvalidProtocolBufferNanoException e) {
@@ -114,55 +112,40 @@ public class UsbBackgroundService extends Service {
 		isCmdTaskRunning = false;
 	}
 
+	public void createDevice(UsbManager usbManager, UsbDevice usbDevice) {
+		usbDeviceFrameProcessor = new UsbDeviceFrameProcessor(this, usbManager, usbDevice);
+		usbDeviceFrameProcessor.connect();
+	}
+
+	public void destoryDevice(UsbManager usbManager, UsbDevice usbDevice) {
+		if (usbDeviceFrameProcessor != null) {
+			usbDeviceFrameProcessor.disconnect();
+			Log.d(TAG, "USB device detached");
+			Intent usbDeviceListIntent = new Intent(UsbService.BGSVC_USB_DEVICE_LIST);
+			usbDeviceListIntent.putExtra(UsbService.BGSVC_USB_DEVICE_LIST, UsbService.listUsbDevices(usbManager));
+			LocalBroadcastManager.getInstance(this).sendBroadcast(usbDeviceListIntent);
+		}
+	}
+
 	@Override
 	public void onCreate() {
 		super.onCreate();
-
-		context = this.getApplicationContext();
-		usbManager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
-
-		receiver = new BroadcastReceiver() {
-			@Override
-			public void onReceive(Context context, Intent intent) {
-				if (intent.getAction() != null) {
-					switch (intent.getAction()) {
-						case BGSVC_USB_CONNECT:
-							if (usbDeviceFrameProcessor.connect()) {
-								startCommandTask();
-							}
-							break;
-						case BGSVC_USB_SCAN:
-							Intent usbDeviceListIntent = new Intent(UsbBackgroundService.BGSVC_USB_DEVICE_LIST);
-							usbDeviceListIntent.putExtra(BGSVC_USB_DEVICE_LIST, listUsbDevices());
-							LocalBroadcastManager.getInstance(context).sendBroadcast(usbDeviceListIntent);
-							break;
-					}
-				}
-			}
-		};
-		IntentFilter intentFilter = new IntentFilter();
-		intentFilter.addAction(UsbBackgroundService.BGSVC_USB_SCAN);
-		intentFilter.addAction(UsbBackgroundService.BGSVC_USB_CONNECT);
-		LocalBroadcastManager.getInstance(this).registerReceiver(receiver, intentFilter);
 
 		// Bind the PID controller to this USB frame processor so we can pass it messages.
 		pidServiceConnection = new ServiceConnection() {
 
 			public void onServiceConnected(ComponentName className,
 			                               IBinder service) {
-				binder = (PidControllerService.PidControllerBinder) service;
-				pidControllerService = binder.getService();
+				pidServiceBinder = (PidService.PidServiceBinder) service;
+				pidService = pidServiceBinder.getService();
 				pidServiceIsBound = true;
 			}
 
 			public void onServiceDisconnected(ComponentName arg0) {
-				pidControllerService = null;
+				pidService = null;
 				pidServiceIsBound = false;
 			}
 		};
-
-		// Setup the USB broadcast receiver to get events from the bus.
-		setupUsbBroadcastReceiver();
 	}
 
 	@Override
@@ -172,7 +155,11 @@ public class UsbBackgroundService extends Service {
 
 	@Override
 	public IBinder onBind(Intent intent) {
-		return binder;
+		if (intent.getComponent().getClassName().equals(UsbService.class.getName())) {
+			return usbServiceBinder;
+		} else {
+			return pidServiceBinder;
+		}
 	}
 
 	@Override
@@ -187,50 +174,10 @@ public class UsbBackgroundService extends Service {
 
 	@Override
 	public void onDestroy() {
-		LocalBroadcastManager.getInstance(this).unregisterReceiver(receiver);
+
 	}
 
-	private void setupUsbBroadcastReceiver() {
-		if (usbBroadcastReceiver == null) {
-			usbBroadcastReceiver = new BroadcastReceiver() {
-				public void onReceive(Context context, Intent intent) {
-					String action = intent.getAction();
-					if (ACTION_USB_PERMISSION.equals(action)) {
-						synchronized (this) {
-							if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
-								usbDeviceFrameProcessor = new UsbDeviceFrameProcessor(context, usbManager, usbDevice);
-								usbDeviceFrameProcessor.connect();
-							} else {
-								Log.d(TAG, "Permission denied for USB device");
-							}
-						}
-					} else if (UsbManager.ACTION_USB_DEVICE_ATTACHED.equals(action)) {
-						// get the first (only) connected device
-						usbDevice = usbManager.getDeviceList().values().iterator().next();
-						usbManager.requestPermission(usbDevice, permissionIntent);
-						Log.d(TAG, "USB device attached");
-						Intent usbDeviceListIntent = new Intent(UsbBackgroundService.BGSVC_USB_DEVICE_LIST);
-						usbDeviceListIntent.putExtra(UsbBackgroundService.BGSVC_USB_DEVICE_LIST, listUsbDevices());
-						LocalBroadcastManager.getInstance(context).sendBroadcast(usbDeviceListIntent);
-					} else if (UsbManager.ACTION_USB_DEVICE_DETACHED.equals(action)) {
-						usbDeviceFrameProcessor.disconnect();
-						Log.d(TAG, "USB device detached");
-						Intent usbDeviceListIntent = new Intent(UsbBackgroundService.BGSVC_USB_DEVICE_LIST);
-						usbDeviceListIntent.putExtra(UsbBackgroundService.BGSVC_USB_DEVICE_LIST, listUsbDevices());
-						LocalBroadcastManager.getInstance(context).sendBroadcast(usbDeviceListIntent);
-					}
-				}
-			};
-		}
-		// Ask permission from user to use the usb device
-		permissionIntent = PendingIntent.getBroadcast(context, 0, new Intent(ACTION_USB_PERMISSION), 0);
-		IntentFilter intentFilter = new IntentFilter(ACTION_USB_PERMISSION);
-		intentFilter.addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED);
-		intentFilter.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED);
-		context.registerReceiver(usbBroadcastReceiver, intentFilter);
-	}
-
-	public String listUsbDevices() {
+	public static String listUsbDevices(UsbManager usbManager) {
 
 		HashMap<String, UsbDevice> deviceList = usbManager.getDeviceList();
 
