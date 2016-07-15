@@ -47,6 +47,10 @@ public class PidService extends Service {
 		context = this;
 	}
 
+	public void reset() {
+		messagesRcvd = 0;
+	}
+
 	// This class allows us to bind the USB frame processor and Firebase Cloud Messaging.
 	public class PidServiceBinder extends Binder {
 		PidService getService() {

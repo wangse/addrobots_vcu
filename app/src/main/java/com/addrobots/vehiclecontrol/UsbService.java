@@ -80,31 +80,30 @@ public class UsbService extends Service {
 		if (isCmdTaskRunning == false) {
 			isCmdTaskRunning = true;
 
-			// Bind to the PID service so that we can send it messages.
-			Intent intent = new Intent(this, PidService.class);
-			bindService(intent, pidServiceConnection, Context.BIND_AUTO_CREATE);
-
-			Thread usbThread = new Thread("USB frame processor") {
-				public void run() {
-					byte frameBytes[];
-					while (isCmdTaskRunning) {
-						frameBytes = usbDeviceFrameProcessor.receiveFrame();
-						if (frameBytes.length > 0) {
-							try {
-								McuCmdMsg.McuWrapperMessage mcuCmd = McuCmdMsg.McuWrapperMessage.parseFrom(frameBytes);
-								if (!pidServiceIsBound) {
-									Log.d(TAG, "PID controller not bound");
-								} else if (!pidService.processMcuCommand(mcuCmd)) {
-									Log.d(TAG, "Invalid Mcu command on USB");
+			if (pidServiceIsBound) {
+				pidService.reset();
+				Thread usbThread = new Thread("USB frame processor") {
+					public void run() {
+						byte frameBytes[];
+						while (isCmdTaskRunning) {
+							frameBytes = usbDeviceFrameProcessor.receiveFrame();
+							if (frameBytes.length > 0) {
+								try {
+									McuCmdMsg.McuWrapperMessage mcuCmd = McuCmdMsg.McuWrapperMessage.parseFrom(frameBytes);
+									if (!pidService.processMcuCommand(mcuCmd)) {
+										Log.d(TAG, "Invalid Mcu command on USB");
+									}
+								} catch (InvalidProtocolBufferNanoException e) {
+									e.printStackTrace();
 								}
-							} catch (InvalidProtocolBufferNanoException e) {
-								e.printStackTrace();
 							}
 						}
 					}
-				}
-			};
-			usbThread.start();
+				};
+				usbThread.start();
+			} else {
+				Log.d(TAG, "PID controller not bound");
+			}
 		}
 	}
 
@@ -115,12 +114,18 @@ public class UsbService extends Service {
 	public void createDevice(UsbManager usbManager, UsbDevice usbDevice) {
 		usbDeviceFrameProcessor = new UsbDeviceFrameProcessor(this, usbManager, usbDevice);
 		usbDeviceFrameProcessor.connect();
+		startCommandTask();
 	}
 
 	public void destoryDevice(UsbManager usbManager, UsbDevice usbDevice) {
+		stopCommandTask();
 		if (usbDeviceFrameProcessor != null) {
 			usbDeviceFrameProcessor.disconnect();
 			Log.d(TAG, "USB device detached");
+
+			Intent clearSamplesIntent = new Intent(VcuActivity.VCU_CLEAR_SENSOR_DATA);
+			LocalBroadcastManager.getInstance(this).sendBroadcast(clearSamplesIntent);
+
 			Intent usbDeviceListIntent = new Intent(UsbService.BGSVC_USB_DEVICE_LIST);
 			usbDeviceListIntent.putExtra(UsbService.BGSVC_USB_DEVICE_LIST, UsbService.listUsbDevices(usbManager));
 			LocalBroadcastManager.getInstance(this).sendBroadcast(usbDeviceListIntent);
@@ -146,6 +151,10 @@ public class UsbService extends Service {
 				pidServiceIsBound = false;
 			}
 		};
+
+		// Bind to the PID service so that we can send it messages.
+		Intent intent = new Intent(this, PidService.class);
+		bindService(intent, pidServiceConnection, Context.BIND_AUTO_CREATE);
 	}
 
 	@Override

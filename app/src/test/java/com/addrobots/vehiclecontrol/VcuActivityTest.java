@@ -46,18 +46,18 @@ public class VcuActivityTest extends ActivityInstrumentationTestCase2<VcuActivit
 	}
 
 	@Test
-	public void testUsbScanButton() {
+	public void testUsbSubscriberButton() {
 		VcuActivity activity = getActivity();
 
-		final Button usbScanButton = (Button) activity.findViewById(R.id.scan_usb_button);
+		final Button subscribeButton = (Button) activity.findViewById(R.id.subscribe_button);
 
 		getInstrumentation().runOnMainSync(new Runnable() {
 			@Override
 			public void run() {
-				usbScanButton.requestFocus();
+				subscribeButton.requestFocus();
 			}
 		});
-		TouchUtils.clickView(this, usbScanButton);
+		TouchUtils.clickView(this, subscribeButton);
 	}
 
 	@Test

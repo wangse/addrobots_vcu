@@ -39,7 +39,7 @@ import android.os.IBinder;
 import android.support.v4.app.NotificationCompat;
 import android.util.Log;
 
-import com.addrobots.protobuf.McuCmdMsg;
+import com.addrobots.protobuf.VcuCmdMsg;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
 import com.google.protobuf.nano.InvalidProtocolBufferNanoException;
@@ -83,11 +83,11 @@ public class FirebaseMsgService extends FirebaseMessagingService {
 	    for (String data: dataMap.keySet()) {
 		    if (data.equals(VCU_CMD_TAG)) {
 			    try {
-				    McuCmdMsg.McuWrapperMessage mcuCmd = McuCmdMsg.McuWrapperMessage.parseFrom(dataMap.get(data).getBytes());
-				    if (pidServiceIsBound) {
+				    VcuCmdMsg.VcuWrapperMessage vcuCmd = VcuCmdMsg.VcuWrapperMessage.parseFrom(dataMap.get(data).getBytes());
+				    if (!pidServiceIsBound) {
 					    Log.d(TAG, "PID controller not bound");
-				    } else if (!pidService.processMcuCommand(mcuCmd)) {
-					    Log.d(TAG, "Invalid Mcu command on USB");
+				    } else if (!pidService.processVcuCommand(vcuCmd)) {
+					    Log.d(TAG, "Invalid Vcu command on USB");
 				    }
 			    } catch (InvalidProtocolBufferNanoException e) {
 				    e.printStackTrace();
