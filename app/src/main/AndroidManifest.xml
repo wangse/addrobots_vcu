@@ -20,7 +20,8 @@
 				android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
 				android:resource="@xml/device_filter"/>
 		</activity>
-		<service android:name=".FirebaseMsgService">
+		<service android:name=".FirebaseMsgService"
+		         android:enabled="true">
 			<intent-filter>
 				<action android:name="com.google.firebase.MESSAGING_EVENT"/>
 			</intent-filter>

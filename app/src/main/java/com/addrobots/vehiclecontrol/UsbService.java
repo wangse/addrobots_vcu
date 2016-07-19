@@ -42,10 +42,14 @@ import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
 import com.addrobots.protobuf.McuCmdMsg;
-import com.google.protobuf.nano.InvalidProtocolBufferNanoException;
+import com.google.protobuf.InvalidProtocolBufferException;
 
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
+
+//import com.addrobots.protobuf.McuCmdMsg;
+//import com.google.protobuf.nano.InvalidProtocolBufferNanoException;
 
 public class UsbService extends Service {
 
@@ -56,11 +60,10 @@ public class UsbService extends Service {
 	private Boolean isCmdTaskRunning = false;
 	private int startMode;
 	private boolean allowRebind;
-	private UsbDeviceFrameProcessor usbDeviceFrameProcessor;
+	private Map<String, UsbDeviceFrameProcessor> deviceMap = new HashMap<String, UsbDeviceFrameProcessor>();
+	//	private UsbDeviceFrameProcessor usbDeviceFrameProcessor;
 	private PidService.PidServiceBinder pidServiceBinder;
-
 	private final IBinder usbServiceBinder = new UsbServiceBinder();
-
 	private ServiceConnection pidServiceConnection;
 	private PidService pidService;
 	boolean pidServiceIsBound = false;
@@ -76,7 +79,7 @@ public class UsbService extends Service {
 		return isCmdTaskRunning;
 	}
 
-	public void startCommandTask() {
+	public void startCommandTask(final UsbDeviceFrameProcessor usbDeviceFrameProcessor) {
 		if (isCmdTaskRunning == false) {
 			isCmdTaskRunning = true;
 
@@ -90,10 +93,10 @@ public class UsbService extends Service {
 							if (frameBytes.length > 0) {
 								try {
 									McuCmdMsg.McuWrapperMessage mcuCmd = McuCmdMsg.McuWrapperMessage.parseFrom(frameBytes);
-									if (!pidService.processMcuCommand(mcuCmd)) {
+									if (!pidService.processMcuCommand(usbDeviceFrameProcessor.getDeviceId(), mcuCmd)) {
 										Log.d(TAG, "Invalid Mcu command on USB");
 									}
-								} catch (InvalidProtocolBufferNanoException e) {
+								} catch (InvalidProtocolBufferException e) {
 									e.printStackTrace();
 								}
 							}
@@ -112,13 +115,16 @@ public class UsbService extends Service {
 	}
 
 	public void createDevice(UsbManager usbManager, UsbDevice usbDevice) {
-		usbDeviceFrameProcessor = new UsbDeviceFrameProcessor(this, usbManager, usbDevice);
+		UsbDeviceFrameProcessor usbDeviceFrameProcessor = new UsbDeviceFrameProcessor(this, usbManager, usbDevice);
 		usbDeviceFrameProcessor.connect();
-		startCommandTask();
+		deviceMap.put(usbDevice.getSerialNumber(), usbDeviceFrameProcessor);
+		startCommandTask(usbDeviceFrameProcessor);
 	}
 
 	public void destoryDevice(UsbManager usbManager, UsbDevice usbDevice) {
 		stopCommandTask();
+
+		UsbDeviceFrameProcessor usbDeviceFrameProcessor = deviceMap.get(usbDevice.getSerialNumber());
 		if (usbDeviceFrameProcessor != null) {
 			usbDeviceFrameProcessor.disconnect();
 			Log.d(TAG, "USB device detached");
@@ -130,6 +136,30 @@ public class UsbService extends Service {
 			usbDeviceListIntent.putExtra(UsbService.BGSVC_USB_DEVICE_LIST, UsbService.listUsbDevices(usbManager));
 			LocalBroadcastManager.getInstance(this).sendBroadcast(usbDeviceListIntent);
 		}
+		deviceMap.remove(usbDevice.getSerialNumber());
+	}
+
+	public Boolean sendMcuCommandToDevice(String deviceId, McuCmdMsg.McuWrapperMessage mcuCmdMsg) {
+		Boolean result = false;
+
+		UsbDeviceFrameProcessor usbDeviceFrameProcessor = deviceMap.get(deviceId);
+		if (usbDeviceFrameProcessor != null) {
+			result = true;
+			byte[] frame = mcuCmdMsg.toByteArray();
+			usbDeviceFrameProcessor.sendFrame(frame);
+		}
+		return result;
+	}
+
+	public Boolean sendMcuCommandToAllDevices(McuCmdMsg.McuWrapperMessage mcuCmdMsg) {
+		Boolean result = false;
+
+		for (UsbDeviceFrameProcessor usbDeviceFrameProcessor : deviceMap.values()) {
+			byte[] frame = mcuCmdMsg.toByteArray();
+			usbDeviceFrameProcessor.sendFrame(frame);
+			result = true;
+		}
+		return result;
 	}
 
 	@Override

@@ -112,6 +112,10 @@ public class UsbDeviceFrameProcessor {
 		return isConnected;
 	}
 
+	public String getDeviceId() {
+		return usbDevice.getSerialNumber();
+	}
+
 	public byte[] receiveFrame() {
 		byte[] frameBuffer = new byte[MAX_FRAME_BYTES];
 		byte nextByte;
@@ -166,8 +170,8 @@ public class UsbDeviceFrameProcessor {
 		return result;
 	}
 
-	public void sendFrame(ByteArrayOutputStream inByteArrayStream) {
-		byte[] frameBytes = inByteArrayStream.toByteArray();
+	public void sendFrame(byte[] frameBytes) {
+//		byte[] frameBytes = inByteArrayStream.toByteArray();
 		byte[] buffer = new byte[MAX_FRAME_BYTES];
 		int bufPos = 0;
 		int bytesToSend = Math.min(MAX_FRAME_BYTES, frameBytes.length);
@@ -211,7 +215,7 @@ public class UsbDeviceFrameProcessor {
 		synchronized (this) {
 			while (sentBytes < len) {
 				// send data to usb device
-				sentBytes += usbDeviceConnection.bulkTransfer(output, data, sentBytes, data.length, 1000);
+				sentBytes += usbDeviceConnection.bulkTransfer(output, data, sentBytes, len, 1000);
 			}
 		}
 

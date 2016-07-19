@@ -30,6 +30,8 @@ package com.addrobots.vehiclecontrol;
 
 import android.content.Context;
 import android.content.Intent;
+import android.hardware.usb.UsbDevice;
+import android.hardware.usb.UsbManager;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -42,17 +44,24 @@ public class UsbServiceTest {
 
 	private Context context;
 	private UsbService usbService;
+	private UsbManager usbManager;
+	private UsbDevice usbDevice;
+	private UsbDeviceFrameProcessor usbDeviceFrameProcessor;
 
 	@Before
 	public void init() {
 		context = mock(Context.class);
-		usbService = new UsbService();
+		usbManager = mock(UsbManager.class);
+		usbDevice = mock(UsbDevice.class);
 		context.startService(new Intent(context, UsbService.class));
+		usbDeviceFrameProcessor = new UsbDeviceFrameProcessor(context, usbManager, usbDevice);
 	}
 
 	@Test
 	public void testUsbProcessor() throws Exception {
-		usbService.startCommandTask();
+		usbService = new UsbService();
+
+		usbService.startCommandTask(usbDeviceFrameProcessor);
 		assertTrue(usbService.isCommandTaskRunning());
 		usbService.stopCommandTask();
 		assertFalse(usbService.isCommandTaskRunning());

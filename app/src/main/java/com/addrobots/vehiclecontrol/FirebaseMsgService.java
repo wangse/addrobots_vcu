@@ -42,7 +42,7 @@ import android.util.Log;
 import com.addrobots.protobuf.VcuCmdMsg;
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
-import com.google.protobuf.nano.InvalidProtocolBufferNanoException;
+import com.google.protobuf.InvalidProtocolBufferException;
 
 import java.util.Map;
 
@@ -72,7 +72,9 @@ public class FirebaseMsgService extends FirebaseMessagingService {
 				pidServiceIsBound = false;
 			}
 		};
-
+		// Bind to the PID service so that we can send it messages.
+		Intent intent = new Intent(this, PidService.class);
+		bindService(intent, pidServiceConnection, Context.BIND_AUTO_CREATE);
 	}
 
     @Override
@@ -80,21 +82,38 @@ public class FirebaseMsgService extends FirebaseMessagingService {
         RemoteMessage.Notification notification = remoteMessage.getNotification();
         String body = notification.getBody();
 	    Map<String, String> dataMap = remoteMessage.getData();
-	    for (String data: dataMap.keySet()) {
-		    if (data.equals(VCU_CMD_TAG)) {
+	    for (String key: dataMap.keySet()) {
+		    if (key.equals(VCU_CMD_TAG)) {
 			    try {
-				    VcuCmdMsg.VcuWrapperMessage vcuCmd = VcuCmdMsg.VcuWrapperMessage.parseFrom(dataMap.get(data).getBytes());
+				    String value = dataMap.get(key);
+				    // We have to get the data string bytes as unsigned.
+				    byte[] unsignedBytes = new byte[value.length()];
+//				    int i = 0;
+//				    for(byte b : value.(StandardCharsets.UTF_8)){
+//					    if (b < 0) {
+//						    unsignedBytes[i++] = (byte) (b + 256);
+//					    } else {
+//						    unsignedBytes[i++] = b;
+//					    }
+//				    }
+				    int n = 0;
+				    for (int i = 0; i < value.length(); ++n) {
+					    int cp = value.codePointAt(i);
+					    i += Character.charCount(cp);
+					    unsignedBytes[n] = (byte) (0xff & cp);
+				    }
+				    VcuCmdMsg.VcuWrapperMessage vcuCmd = VcuCmdMsg.VcuWrapperMessage.parseFrom(unsignedBytes);
 				    if (!pidServiceIsBound) {
 					    Log.d(TAG, "PID controller not bound");
 				    } else if (!pidService.processVcuCommand(vcuCmd)) {
 					    Log.d(TAG, "Invalid Vcu command on USB");
 				    }
-			    } catch (InvalidProtocolBufferNanoException e) {
+			    } catch (InvalidProtocolBufferException e) {
 				    e.printStackTrace();
 			    }
 		    }
-		    Log.d(TAG, data);
-		    Log.d(TAG, dataMap.get(data));
+		    Log.d(TAG, key);
+		    Log.d(TAG, dataMap.get(key));
 	    }
         // TODO(developer): Handle FCM messages here.
         // If the application is in the foreground handle both data and notification messages here.

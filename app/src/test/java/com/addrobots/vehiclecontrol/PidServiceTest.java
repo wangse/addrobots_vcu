@@ -92,7 +92,7 @@ public class PidServiceTest {
 		// Test a OFX sensor command from raw bytes.
 		byte[] cmdBytes = {0x12, 0x11, 0x0A, 0x03, 0x4F, 0x46, 0x58, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, (byte) 0xF0, 0x3F, 0x1A, 0x01, 0x50};
 		McuCmdMsg.McuWrapperMessage mcuCmd = McuCmdMsg.McuWrapperMessage.parseFrom(cmdBytes);
-		assertTrue(pidService.processMcuCommand(mcuCmd));
+		assertTrue(pidService.processMcuCommand("12345", mcuCmd));
 		assertTrue(ofxBroadcastSeen);
 	}
 }

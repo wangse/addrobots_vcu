@@ -27,8 +27,10 @@
 package com.addrobots.vehiclecontrol;
 
 import android.app.Service;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.os.Binder;
 import android.os.IBinder;
 import android.support.v4.content.LocalBroadcastManager;
@@ -42,6 +44,10 @@ public class PidService extends Service {
 	private int messagesRcvd;
 	private final IBinder pidServiceBinder = new PidServiceBinder();
 	private VcuCmdMsg.VcuWrapperMessage activeVcuCommand;
+
+	private ServiceConnection usbServiceConnection;
+	private UsbService usbService;
+	boolean usbServiceIsBound = false;
 
 	public PidService() {
 		context = this;
@@ -61,60 +67,105 @@ public class PidService extends Service {
 	public Boolean processVcuCommand(VcuCmdMsg.VcuWrapperMessage vcuCmd) {
 		Boolean result = false;
 		switch (vcuCmd.getMsgCase()) {
-			case VcuCmdMsg.VcuWrapperMessage.HALT_FIELD_NUMBER:
+			case HALT:
+				VcuCmdMsg.Halt haltCmd = vcuCmd.getHalt();
+				processHaltCmd(haltCmd);
 				break;
-			case VcuCmdMsg.VcuWrapperMessage.DRIVE_FIELD_NUMBER:
-				if (vcuCmd.hasDrive()) {
-					result = true;
-					VcuCmdMsg.Drive driveCmd = vcuCmd.getDrive();
-
-				}
+			case DRIVE:
+				result = true;
+				VcuCmdMsg.Drive driveCmd = vcuCmd.getDrive();
+				processDriveCmd(driveCmd);
 				break;
-			case VcuCmdMsg.VcuWrapperMessage.ORBIT_FIELD_NUMBER:
+			case ORBIT:
 				break;
 		}
 		return result;
 	}
 
-	public Boolean processMcuCommand(McuCmdMsg.McuWrapperMessage mcuCmd) {
+	public Boolean processMcuCommand(String deviceId, McuCmdMsg.McuWrapperMessage mcuCmd) {
 		Boolean result = false;
 		messagesRcvd++;
 		Intent intent = null;
 		switch (mcuCmd.getMsgCase()) {
-			case McuCmdMsg.McuWrapperMessage.MOTORCMD_FIELD_NUMBER:
+			case MOTORCMD:
 				break;
-			case McuCmdMsg.McuWrapperMessage.SENSORCMD_FIELD_NUMBER:
-				if (mcuCmd.hasSensorCmd()) {
-					result = true;
-					if ((messagesRcvd % 60) == 0) {
-						intent = new Intent(VcuActivity.VCU_CLEAR_SENSOR_DATA);
-						LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
+			case SENSORCMD:
+				result = true;
+				if ((messagesRcvd % 60) == 0) {
+					intent = new Intent(VcuActivity.VCU_CLEAR_SENSOR_DATA);
+					LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
 
-					}
-					McuCmdMsg.SensorCmd sensorCmd = mcuCmd.getSensorCmd();
-					if (sensorCmd.name.equals("OFX")) {
-						intent = new Intent(VcuActivity.VCU_X_SENSOR_DATA);
-						intent.putExtra(VcuActivity.VCU_X_SENSOR_DATA, "\n" + messagesRcvd);//sensorCmd.value);
-						LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
-					} else if (sensorCmd.name.equals("OFY")) {
-						intent = new Intent(VcuActivity.VCU_Y_SENSOR_DATA);
-						intent.putExtra(VcuActivity.VCU_Y_SENSOR_DATA, "\n" + messagesRcvd);//sensorCmd.value);
-						LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
-					} else if (sensorCmd.name.equals("OFQ")) {
-						intent = new Intent(VcuActivity.VCU_Q_SENSOR_DATA);
-						intent.putExtra(VcuActivity.VCU_Q_SENSOR_DATA, "\n" + messagesRcvd);//sensorCmd.value);
-						LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
-					}
+				}
+				McuCmdMsg.SensorCmd sensorCmd = mcuCmd.getSensorCmd();
+				if (sensorCmd.getName().equals("OFX")) {
+					intent = new Intent(VcuActivity.VCU_X_SENSOR_DATA);
+					intent.putExtra(VcuActivity.VCU_X_SENSOR_DATA, "\n" + messagesRcvd);//sensorCmd.value);
+					LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
+				} else if (sensorCmd.getName().equals("OFY")) {
+					intent = new Intent(VcuActivity.VCU_Y_SENSOR_DATA);
+					intent.putExtra(VcuActivity.VCU_Y_SENSOR_DATA, "\n" + messagesRcvd);//sensorCmd.value);
+					LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
+				} else if (sensorCmd.getName().equals("OFQ")) {
+					intent = new Intent(VcuActivity.VCU_Q_SENSOR_DATA);
+					intent.putExtra(VcuActivity.VCU_Q_SENSOR_DATA, "\n" + messagesRcvd);//sensorCmd.value);
+					LocalBroadcastManager.getInstance(context).sendBroadcast(intent);
 				}
 				break;
 		}
 		return result;
+	}
+
+	public static final int FORWARD = 0;
+	public static final int REVERSE = 1;
+
+	private void processDriveCmd(VcuCmdMsg.Drive driveCmd) {
+		if (usbServiceIsBound) {
+			McuCmdMsg.MotorCmd motorCmd1 = McuCmdMsg.MotorCmd.newBuilder().setDir(FORWARD).setDegSec(150).setNum(1).setADegSec(2.0).build();
+			McuCmdMsg.McuWrapperMessage mcuMsgCmd1 = McuCmdMsg.McuWrapperMessage.newBuilder().setMotorCmd(motorCmd1).build();
+
+			McuCmdMsg.MotorCmd motorCmd2 = McuCmdMsg.MotorCmd.newBuilder().setDir(FORWARD).setDegSec(150).setNum(2).setADegSec(2.0).build();
+			McuCmdMsg.McuWrapperMessage mcuMsgCmd2 = McuCmdMsg.McuWrapperMessage.newBuilder().setMotorCmd(motorCmd2).build();
+
+			usbService.sendMcuCommandToAllDevices(mcuMsgCmd1);
+			usbService.sendMcuCommandToAllDevices(mcuMsgCmd2);
+		}
+	}
+
+	private void processHaltCmd(VcuCmdMsg.Halt haltCmd) {
+		McuCmdMsg.MotorCmd motorCmd1 = McuCmdMsg.MotorCmd.newBuilder().setDir(FORWARD).setDegSec(0).setNum(1).setADegSec(2.0).build();
+		McuCmdMsg.McuWrapperMessage mcuMsgCmd1 = McuCmdMsg.McuWrapperMessage.newBuilder().setMotorCmd(motorCmd1).build();
+
+		McuCmdMsg.MotorCmd motorCmd2 = McuCmdMsg.MotorCmd.newBuilder().setDir(FORWARD).setDegSec(0).setNum(2).setADegSec(2.0).build();
+		McuCmdMsg.McuWrapperMessage mcuMsgCmd2 = McuCmdMsg.McuWrapperMessage.newBuilder().setMotorCmd(motorCmd2).build();
+
+		usbService.sendMcuCommandToAllDevices(mcuMsgCmd1);
+		usbService.sendMcuCommandToAllDevices(mcuMsgCmd2);
 	}
 
 	@Override
 	public void onCreate() {
 		super.onCreate();
 		context = this.getApplicationContext();
+		// Bind the PID controller to this USB frame processor so we can pass it messages.
+		usbServiceConnection = new ServiceConnection() {
+
+			public void onServiceConnected(ComponentName className,
+			                               IBinder service) {
+				if (service.getClass().equals(UsbService.UsbServiceBinder.class)) {
+					UsbService.UsbServiceBinder binder = (UsbService.UsbServiceBinder) service;
+					usbService = binder.getService();
+					usbServiceIsBound = true;
+				}
+			}
+
+			public void onServiceDisconnected(ComponentName arg0) {
+				usbServiceIsBound = false;
+			}
+		};
+		// Bind to the USB service so that we can send it messages.
+		Intent intent = new Intent(this, UsbService.class);
+		bindService(intent, usbServiceConnection, Context.BIND_AUTO_CREATE);
+
 	}
 
 	@Override

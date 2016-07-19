@@ -79,43 +79,45 @@ public class UsbBroadcastReceiver extends BroadcastReceiver {
 
 		Intent peekIntent = new Intent(context.getApplicationContext(), UsbService.class);
 		usbServiceBinder = (UsbService.UsbServiceBinder) peekService(context, peekIntent);
-		usbService = usbServiceBinder.getService();
-		UsbManager usbManager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
+		if (usbServiceBinder != null) {
+			usbService = usbServiceBinder.getService();
+			UsbManager usbManager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
 
-		String action = intent.getAction();
-		if (ACTION_USB_PERMISSION.equals(action)) {
-			synchronized (this) {
+			String action = intent.getAction();
+			if (ACTION_USB_PERMISSION.equals(action)) {
+				synchronized (this) {
+					UsbDevice usbDevice = (UsbDevice) intent.getExtras().get(UsbManager.EXTRA_DEVICE);
+					if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
+//					usbServiceBinder.getService().createDevice(usbManager, usbDevice);
+						usbService.createDevice(usbManager, usbDevice);
+					} else {
+						Log.d(TAG, "Permission denied for USB device");
+					}
+				}
+			} else if (UsbManager.ACTION_USB_DEVICE_ATTACHED.equals(action)) {
 				UsbDevice usbDevice = (UsbDevice) intent.getExtras().get(UsbManager.EXTRA_DEVICE);
-				if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
-//					usbServiceBinder.getService().createDevice(usbManager, usbDevice);
-					usbService.createDevice(usbManager, usbDevice);
-				} else {
-					Log.d(TAG, "Permission denied for USB device");
-				}
-			}
-		} else if (UsbManager.ACTION_USB_DEVICE_ATTACHED.equals(action)) {
-			UsbDevice usbDevice = (UsbDevice) intent.getExtras().get(UsbManager.EXTRA_DEVICE);
-			if ((usbDevice.getVendorId() == context.getResources().getInteger(R.integer.add_robots_usb_vendorid))
-					&& (usbDevice.getProductId() == context.getResources().getInteger(R.integer.bot_v1_usb_prodid))) {
-				Log.d(TAG, "USB device attached:" + usbDevice.getDeviceName());
+				if ((usbDevice.getVendorId() == context.getResources().getInteger(R.integer.add_robots_usb_vendorid))
+						&& (usbDevice.getProductId() == context.getResources().getInteger(R.integer.bot_v1_usb_prodid))) {
+					Log.d(TAG, "USB device attached:" + usbDevice.getDeviceName());
 
-				if (!usbManager.hasPermission(usbDevice)) {
-					PendingIntent permissionIntent = PendingIntent.getBroadcast(context, 0, new Intent(ACTION_USB_PERMISSION), 0);
-					usbManager.requestPermission(usbDevice, permissionIntent);
-				} else {
+					if (!usbManager.hasPermission(usbDevice)) {
+						PendingIntent permissionIntent = PendingIntent.getBroadcast(context, 0, new Intent(ACTION_USB_PERMISSION), 0);
+						usbManager.requestPermission(usbDevice, permissionIntent);
+					} else {
 //					usbServiceBinder.getService().createDevice(usbManager, usbDevice);
-					usbService.createDevice(usbManager, usbDevice);
+						usbService.createDevice(usbManager, usbDevice);
+					}
+					Intent usbDeviceListIntent = new Intent(UsbService.BGSVC_USB_DEVICE_LIST);
+					usbDeviceListIntent.putExtra(UsbService.BGSVC_USB_DEVICE_LIST, UsbService.listUsbDevices(usbManager));
+					LocalBroadcastManager.getInstance(context).sendBroadcast(usbDeviceListIntent);
 				}
-				Intent usbDeviceListIntent = new Intent(UsbService.BGSVC_USB_DEVICE_LIST);
-				usbDeviceListIntent.putExtra(UsbService.BGSVC_USB_DEVICE_LIST, UsbService.listUsbDevices(usbManager));
-				LocalBroadcastManager.getInstance(context).sendBroadcast(usbDeviceListIntent);
-			}
-		} else if (UsbManager.ACTION_USB_DEVICE_DETACHED.equals(action)) {
-			UsbDevice usbDevice = (UsbDevice) intent.getExtras().get(UsbManager.EXTRA_DEVICE);
-			if ((usbDevice.getVendorId() == context.getResources().getInteger(R.integer.add_robots_usb_vendorid))
-					&& (usbDevice.getProductId() == context.getResources().getInteger(R.integer.bot_v1_usb_prodid))) {
+			} else if (UsbManager.ACTION_USB_DEVICE_DETACHED.equals(action)) {
+				UsbDevice usbDevice = (UsbDevice) intent.getExtras().get(UsbManager.EXTRA_DEVICE);
+				if ((usbDevice.getVendorId() == context.getResources().getInteger(R.integer.add_robots_usb_vendorid))
+						&& (usbDevice.getProductId() == context.getResources().getInteger(R.integer.bot_v1_usb_prodid))) {
 //				usbServiceBinder.getService().destoryDevice(usbManager, usbDevice);
-				usbService.destoryDevice(usbManager, usbDevice);
+					usbService.destoryDevice(usbManager, usbDevice);
+				}
 			}
 		}
 	}

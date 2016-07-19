@@ -95,12 +95,13 @@ public class VcuApplication extends Application {
 	public void startService() {
 		startService(new Intent(this.getApplicationContext(), PidService.class));
 		startService(new Intent(this.getApplicationContext(), UsbService.class));
+//		startService(new Intent(this.getApplicationContext(), FirebaseMsgService.class));
 
 		// We have to bind the USB service to *something* so that we can get it from a broadcastreceiver (later).
 		usbServiceConnection = new ServiceConnection() {
 
 			public void onServiceConnected(ComponentName className, IBinder service) {
-				if ((service != null) && (service.getClass().equals(UsbService.class))) {
+				if ((service != null) && (service.getClass().equals(UsbService.UsbServiceBinder.class))) {
 					usbServiceBinder = (UsbService.UsbServiceBinder) service;
 					usbService = usbServiceBinder.getService();
 					usbServiceIsBound = true;
@@ -119,5 +120,6 @@ public class VcuApplication extends Application {
 	public void stopService() {
 		stopService(new Intent(this.getBaseContext(), PidService.class));
 		stopService(new Intent(this.getBaseContext(), UsbService.class));
+//		stopService(new Intent(this.getBaseContext(), FirebaseMsgService.class));
 	}
 }

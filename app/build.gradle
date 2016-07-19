@@ -1,5 +1,5 @@
 apply plugin: 'com.android.application'
-apply plugin: 'com.google.protobuf'
+//apply plugin: 'com.google.protobuf'
 
 android {
 	compileSdkVersion 23
@@ -48,46 +48,46 @@ dependencies {
 	compile 'com.google.gms:google-services:3.0.0'
 
 	// Protobuf
-	compile 'com.google.protobuf.nano:protobuf-javanano:3.0.0-alpha-3'
-	compile 'com.google.protobuf:protobuf-java:2.6.1'
-	protobuf files('libs/protos.jar')
+//	compile 'com.google.protobuf.nano:protobuf-javanano:3.0.0-alpha-3'
+	compile 'com.google.protobuf:protobuf-java:3.0.0-beta-3'
+//	protobuf files('libs/protos.jar')
 
 	// Libs
 	compile fileTree(dir: 'libs', include: ['*.jar'])
 
 	// GRPC
-	compile 'io.grpc:grpc-core:0.7.0'
-	compile 'io.grpc:grpc-okhttp:0.7.0'
-	compile 'io.grpc:grpc-stub:0.7.0'
-	compile 'io.grpc:grpc-protobuf-nano:0.7.0'
+//	compile 'io.grpc:grpc-core:0.7.0'
+//	compile 'io.grpc:grpc-okhttp:0.7.0'
+//	compile 'io.grpc:grpc-stub:0.7.0'
+//	compile 'io.grpc:grpc-protobuf-nano:0.7.0'
 }
 
-protobuf {
-	// Configure the protoc executable
-	protoc {
-		// Download from repositories
-		artifact = 'com.google.protobuf:protoc:3.0.0-alpha-3'
-	}
-	plugins {
-		grpc {
-			artifact = 'io.grpc:protoc-gen-grpc-java:0.7.0'
-		}
-	}
-	generateProtoTasks {
-		all()*.builtins {
-			javanano {
-				// Options added to --javanano_out
-				option 'java_multiple_files=false'
-				option 'ignore_services=true'
-			}
-		}
-		ofNonTest()*.plugins {
-			grpc {
-				// Options added to --grpc_out
-				option 'nano=true'
-			}
-		}
-	}
-}
+//protobuf {
+//	// Configure the protoc executable
+//	protoc {
+//		// Download from repositories
+//		artifact = 'com.google.protobuf:protoc:3.0.0-alpha-3'
+//	}
+//	plugins {
+//		grpc {
+//			artifact = 'io.grpc:protoc-gen-grpc-java:0.7.0'
+//		}
+//	}
+//	generateProtoTasks {
+//		all()*.builtins {
+//			javanano {
+//				// Options added to --javanano_out
+//				option 'java_multiple_files=false'
+//				option 'ignore_services=true'
+//			}
+//		}
+//		ofNonTest()*.plugins {
+//			grpc {
+//				// Options added to --grpc_out
+//				option 'nano=true'
+//			}
+//		}
+//	}
+//}
 
 //apply plugin: 'com.google.gms.google-services'
