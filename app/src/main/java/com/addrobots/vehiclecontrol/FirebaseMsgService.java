@@ -37,6 +37,7 @@ import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.IBinder;
 import android.support.v4.app.NotificationCompat;
+import android.util.Base64;
 import android.util.Log;
 
 import com.addrobots.protobuf.VcuCmdMsg;
@@ -86,22 +87,7 @@ public class FirebaseMsgService extends FirebaseMessagingService {
 		    if (key.equals(VCU_CMD_TAG)) {
 			    try {
 				    String value = dataMap.get(key);
-				    // We have to get the data string bytes as unsigned.
-				    byte[] unsignedBytes = new byte[value.length()];
-//				    int i = 0;
-//				    for(byte b : value.(StandardCharsets.UTF_8)){
-//					    if (b < 0) {
-//						    unsignedBytes[i++] = (byte) (b + 256);
-//					    } else {
-//						    unsignedBytes[i++] = b;
-//					    }
-//				    }
-				    int n = 0;
-				    for (int i = 0; i < value.length(); ++n) {
-					    int cp = value.codePointAt(i);
-					    i += Character.charCount(cp);
-					    unsignedBytes[n] = (byte) (0xff & cp);
-				    }
+				    byte[] unsignedBytes = Base64.decode(value, Base64.DEFAULT);
 				    VcuCmdMsg.VcuWrapperMessage vcuCmd = VcuCmdMsg.VcuWrapperMessage.parseFrom(unsignedBytes);
 				    if (!pidServiceIsBound) {
 					    Log.d(TAG, "PID controller not bound");

@@ -117,13 +117,16 @@ public class PidService extends Service {
 
 	public static final int FORWARD = 0;
 	public static final int REVERSE = 1;
+	private static final double WHEEL_ROT_PER_M = 1.0 / (0.15 * Math.PI);
 
 	private void processDriveCmd(VcuCmdMsg.Drive driveCmd) {
 		if (usbServiceIsBound) {
-			McuCmdMsg.MotorCmd motorCmd1 = McuCmdMsg.MotorCmd.newBuilder().setDir(FORWARD).setDegSec(150).setNum(1).setADegSec(2.0).build();
+			double degPerSec = driveCmd.getVelocity() * WHEEL_ROT_PER_M * 360;
+			double accDegPerSec = driveCmd.getAcceleration() * WHEEL_ROT_PER_M * 360;
+			McuCmdMsg.MotorCmd motorCmd1 = McuCmdMsg.MotorCmd.newBuilder().setDir(FORWARD).setDegSec(degPerSec).setNum(1).setADegSec(accDegPerSec).build();
 			McuCmdMsg.McuWrapperMessage mcuMsgCmd1 = McuCmdMsg.McuWrapperMessage.newBuilder().setMotorCmd(motorCmd1).build();
 
-			McuCmdMsg.MotorCmd motorCmd2 = McuCmdMsg.MotorCmd.newBuilder().setDir(FORWARD).setDegSec(150).setNum(2).setADegSec(2.0).build();
+			McuCmdMsg.MotorCmd motorCmd2 = McuCmdMsg.MotorCmd.newBuilder().setDir(FORWARD).setDegSec(degPerSec).setNum(2).setADegSec(accDegPerSec).build();
 			McuCmdMsg.McuWrapperMessage mcuMsgCmd2 = McuCmdMsg.McuWrapperMessage.newBuilder().setMotorCmd(motorCmd2).build();
 
 			usbService.sendMcuCommandToAllDevices(mcuMsgCmd1);

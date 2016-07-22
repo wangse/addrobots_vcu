@@ -40,12 +40,15 @@ import com.google.firebase.FirebaseOptions;
 
 public class VcuApplication extends Application {
 
+	static {
+		System.loadLibrary("opencv_java3");
+	}
+
 	private static final String TAG = "VcuApplication";
 	private UsbService.UsbServiceBinder usbServiceBinder;
 	private ServiceConnection usbServiceConnection;
 	private UsbService usbService;
 	boolean usbServiceIsBound = false;
-
 
 	@Override
 	public void onConfigurationChanged(Configuration newConfig) {
@@ -77,7 +80,7 @@ public class VcuApplication extends Application {
 				.build();
 		FirebaseApp.initializeApp(this, options, FirebaseApp.DEFAULT_APP_NAME);
 
-		startService();
+		startServices();
 	}
 
 	@Override
@@ -88,14 +91,15 @@ public class VcuApplication extends Application {
 	@Override
 	public void onTerminate() {
 		super.onTerminate();
-		stopService();
+		stopServices();
 	}
 
 
-	public void startService() {
+	private void startServices() {
 		startService(new Intent(this.getApplicationContext(), PidService.class));
 		startService(new Intent(this.getApplicationContext(), UsbService.class));
-//		startService(new Intent(this.getApplicationContext(), FirebaseMsgService.class));
+//		startService(new Intent(this.getApplicationContext(), OpticalFlowService.class));
+//		startServices(new Intent(this.getApplicationContext(), FirebaseMsgService.class));
 
 		// We have to bind the USB service to *something* so that we can get it from a broadcastreceiver (later).
 		usbServiceConnection = new ServiceConnection() {
@@ -117,9 +121,10 @@ public class VcuApplication extends Application {
 		bindService(intent, usbServiceConnection, Context.BIND_AUTO_CREATE);
 	}
 
-	public void stopService() {
+	private void stopServices() {
 		stopService(new Intent(this.getBaseContext(), PidService.class));
 		stopService(new Intent(this.getBaseContext(), UsbService.class));
-//		stopService(new Intent(this.getBaseContext(), FirebaseMsgService.class));
+		stopService(new Intent(this.getBaseContext(), OpticalFlowService.class));
+//		stopServices(new Intent(this.getBaseContext(), FirebaseMsgService.class));
 	}
 }

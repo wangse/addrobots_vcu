@@ -28,7 +28,6 @@ android {
 
 dependencies {
 	compile 'com.android.support:appcompat-v7:23.3.0'
-
 	// Unit testing
 	testCompile 'junit:junit:4.12'
 	testCompile 'org.mockito:mockito-core:1.10.19'
@@ -39,27 +38,24 @@ dependencies {
 	// These two are transitive rules to force the right libraries for testing to match the app.
 	androidTestCompile 'com.android.support:support-annotations:23.3.0'
 	androidTestCompile 'com.google.code.findbugs:jsr305:3.0.0'
-
 	// Firebase
 	compile 'com.google.firebase:firebase-messaging:9.0.2'
 	compile 'com.google.firebase:firebase-auth:9.0.2'
 	compile 'com.google.android.gms:play-services:9.0.2'
 	compile 'com.google.firebase:firebase-crash:9.0.2'
 	compile 'com.google.gms:google-services:3.0.0'
-
 	// Protobuf
-//	compile 'com.google.protobuf.nano:protobuf-javanano:3.0.0-alpha-3'
+	//	compile 'com.google.protobuf.nano:protobuf-javanano:3.0.0-alpha-3'
 	compile 'com.google.protobuf:protobuf-java:3.0.0-beta-3'
-//	protobuf files('libs/protos.jar')
-
+	//	protobuf files('libs/protos.jar')
 	// Libs
 	compile fileTree(dir: 'libs', include: ['*.jar'])
-
 	// GRPC
-//	compile 'io.grpc:grpc-core:0.7.0'
-//	compile 'io.grpc:grpc-okhttp:0.7.0'
-//	compile 'io.grpc:grpc-stub:0.7.0'
-//	compile 'io.grpc:grpc-protobuf-nano:0.7.0'
+	//	compile 'io.grpc:grpc-core:0.7.0'
+	//	compile 'io.grpc:grpc-okhttp:0.7.0'
+	//	compile 'io.grpc:grpc-stub:0.7.0'
+	//	compile 'io.grpc:grpc-protobuf-nano:0.7.0'
+	compile project(':openCVLibrary310')
 }
 
 //protobuf {
