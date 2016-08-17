@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lint>
+    <issue id="InlinedApi">
+        <ignore path="src/org/opencv/android/JavaCameraView.java" />
+    </issue>
+    <issue id="NewApi">
+        <ignore path="src/org/opencv/android/JavaCameraView.java" />
+    </issue>
+	<issue id="MissingPermission">
+		<ignore path="src/main/java/org/opencv/android/Camera2Renderer.java" />
+	</issue>
+	<issue id="LongLogTag">
+		<ignore path="src/main/java/org/opencv" />
+	</issue>
+</lint>

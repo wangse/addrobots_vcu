@@ -1,0 +1,615 @@
+/*
+  BSD License
+ 		Copyright (c) 2016, Jeff Williams
+ 		All rights reserved.
+
+ 		Redistribution and use in source and binary forms, with or without
+ 		modification, are permitted provided that the following conditions are met:
+ 		* Redistributions of source code must retain the above copyright
+ 		notice, this list of conditions and the following disclaimer.
+ 		* Redistributions in binary form must reproduce the above copyright
+ 		notice, this list of conditions and the following disclaimer in the
+ 		documentation and/or other materials provided with the distribution.
+ 		* Neither the name of the <organization> nor the
+ 		names of its contributors may be used to endorse or promote products
+ 		derived from this software without specific prior written permission.
+
+ 		THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ 		ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ 		WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ 		DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
+ 		DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ 		(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ 		LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ 		ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ 		(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ 		SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+ */
+
+apply plugin: 'com.android.model.library'
+// This is the "old" way before I used the more modern Plugin/RuleSource.
+//apply from: 'autotools.gradle'
+
+import java.util.regex.Matcher
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+
+// Looking for a way to not have to do this in the plugin.
+// Ideally, there'd be an @Path('project'). Who knows - there's no documentation for the @Path objects.
+AutoToolsPlugin.pluginProject = project
+
+		String[] arm64_includes = ["-I${projectDir}/../../ffmpeg/build_arm64-v8a/", "-I${projectDir}/../../ffmpeg/"]
+String[] arm64_libs = ["-Wl,-rpath-link=${AutoToolsPlugin.getPlatformDir('arm64-v8a')}/usr/lib", "-L${AutoToolsPlugin.getPlatformDir('arm64-v8a')}/usr/lib", "-lm", "-lz"]
+
+String[] arm7_includes = ["-I${projectDir}/../../ffmpeg/build_armeabi-v7a/", "-I${projectDir}/../../ffmpeg/"]
+String[] arm7_libs = ["-Wl,-rpath-link=${AutoToolsPlugin.getPlatformDir('armeabi-v7a')}/usr/lib", "-L${AutoToolsPlugin.getPlatformDir('armeabi-v7a')}/usr/lib", "-lm", "-lz"]
+
+String[] armeabi_includes = ["-I${projectDir}/../../ffmpeg/build_armeabi/", "-I${projectDir}/../../ffmpeg/"]
+String[] armeabi_libs = ["-Wl,-rpath-link=${AutoToolsPlugin.getPlatformDir('armeabi')}/usr/lib", "-L${AutoToolsPlugin.getPlatformDir('armeabi')}/usr/lib", "-lm", "-lz"]
+
+String[] x86_includes = ["-I${projectDir}/../../ffmpeg/build_X86/", "-I${projectDir}/../../ffmpeg/"]
+String[] x86_libs = ["-Wl,-rpath-link=${AutoToolsPlugin.getPlatformDir('x86')}/usr/lib", "-L${AutoToolsPlugin.getPlatformDir('x86')}/usr/lib", "-lm", "-lz"]
+
+String[] x86_64_includes = ["-I${projectDir}/../../ffmpeg/build_X86_64/", "-I${projectDir}/../../ffmpeg/"]
+String[] x86_64_libs = ["-Wl,-rpath-link=${AutoToolsPlugin.getPlatformDir('x86_64')}/usr/lib", "-L${AutoToolsPlugin.getPlatformDir('x86_64')}/usr/lib", "-lm", "-lz"]
+
+def libBinaries
+def nativeSourceSet
+
+model {
+	android {
+		compileSdkVersion = 24
+		buildToolsVersion = '24.0.1'
+		defaultConfig.with {
+			minSdkVersion.apiLevel = 9
+			targetSdkVersion.apiLevel = 24
+			versionCode = 1
+			versionName = '0.0.1'
+		}
+		buildTypes {
+			release {
+				ndk {
+					debuggable true
+				}
+				minifyEnabled = false
+				proguardFiles.add(file('proguard-rules.txt'))
+			}
+			debug {
+				ndk {
+					debuggable true
+				}
+				minifyEnabled = false
+				proguardFiles.add(file('proguard-rules.txt'))
+			}
+		}
+		ndk {
+			moduleName = "ffmpeg"
+			CFlags.addAll(["-x", "none", "-fverbose-asm", "-v", "-O3", "-std=c99", "-Wall", "-pipe", "-fpic", "-fasm", "-finline-limit=300", "-ffast-math", "-fstrict-aliasing", "-pthread", "-g", "-fomit-frame-pointer",
+			               "-DHAVE_AV_CONFIG_H", "-D_ISOC99_SOURCE", "-D_FILE_OFFSET_BITS=64", "-D_LARGEFILE_SOURCE", "-Dstrtod=avpriv_strtod", "-DPIC", "-DZLIB_CONST",
+			               "-Wno-error", "-fmodulo-sched", "-fmodulo-sched-allow-regmoves", "-Wno-psabi"])
+			ldFlags.addAll(["-save-temps", "--verbose"])
+			ldLibs.addAll(["log", "android"])
+			abiFilters.addAll(['arm64-v8a', 'armeabi-v7a', 'armeabi', 'x86', 'x86_64'])
+		}
+		abis {
+			create('arm64-v8a') {
+				// Google, please, please, please let us extend the compilation sourceset here (see below).
+				CFlags.addAll(arm64_includes)
+				CFlags.addAll(["-mabi=lp64"])
+				ldFlags.addAll(arm64_libs)
+			}
+			create('armeabi-v7a') {
+				CFlags.addAll(arm7_includes)
+				CFlags.addAll(["-mfpu=neon"])
+				ldFlags.addAll(arm7_libs)
+			}
+			create('armeabi') {
+				CFlags.addAll(armeabi_includes)
+				CFlags.addAll(["-march=armv7-a", "-mtune=cortex-a8", "-mfpu=neon"])
+				ldFlags.addAll(armeabi_libs)
+			}
+			create('x86') {
+				CFlags.addAll(x86_includes)
+				CFlags.addAll(["-DX86", "-msse4.2", "-mpopcnt", "-mtune=intel"])
+				ldFlags.addAll(x86_libs)
+			}
+			create('x86_64') {
+				CFlags.addAll(x86_64_includes)
+				CFlags.addAll(["-DX86", "-msse4.2", "-mpopcnt", "-m64", "-mtune=intel"])
+				ldFlags.addAll(x86_64_libs)
+			}
+		}
+		sources {
+			main {
+				jni {
+					// Hey Google:
+					// We should be able to extend the compilation sourceset from the ABI to account for architecture-specific files.
+					// Why? Because we want the APK to hold all the libXX.so files for each ABI type so that a single binary can run everywhere.
+					// If you guys would add findNativeSourceSets() to NdkConfiguration.java then this would be a lot cleaner (plus way more sensible):
+					//    addSourceIfExist(sourceSetMap, projectSourceSet, binary.getAbi().getName()); <-- notice the getAbi()
+					// Also, please don't set "-x c" as a command-line arg. GCC/Clang can figure out the compiler type from the extension and we can compile assemlby code.
+					// Related: allow us to include *.S, *.s and *.asm file. That way we incorporate assembly files.
+					// (Tho' the plugin should natively support assembly files.)
+					source {
+						srcDir "../../ffmpeg/"
+						include "compat/strtod.c"
+						include "../../ffmpeg/compat/strtod.c"
+					}
+					exportedHeaders {
+						srcDir "../../FFmpeg"
+					}
+				}
+			}
+		}
+//		externalNativeBuild{
+//			ndkBuild{
+//				path "src/main/jni/Android.mk"
+//			}
+//		}
+//		defaultConfig {
+//			externalNativeBuild {
+//				ndkBuild {
+////					targets "assembly"
+////					arguments "NDK_APPLICATION_MK:=Application.mk"
+////				cFlags "-DTEST_C_FLAG1", "-DTEST_C_FLAG2"
+////				cppFlags "-DTEST_CPP_FLAG2", "-DTEST_CPP_FLAG2"
+//					abiFilters.addAll(['arm64-v8a', 'armeabi-v7a', 'armeabi', 'x86', 'x86_64'])
+//				}
+//			}
+//		}
+	}
+	tasks {
+		setupSourceSetRefs(Task) {
+			logger.info("************************************************************************")
+			logger.info('Setup Source Refs')
+			libBinaries = $.binaries
+			nativeSourceSet = $.android.sources.main.jni.getcFilter()
+			logger.debug("Main source filter: " + nativeSourceSet.getIncludes())
+			logger.debug("Native build: config: " + $.nativeBuildConfig.cFileExtensions)
+		}
+//		project.tasks.all { task ->
+//			if (task.name =~ /compileFfmpeg(.*)(Release|Debug)SharedLibraryFfmpeg.*(Release|Debug)SharedLibraryMainC/) {
+//
+//				logger.debug("************************************************************************")
+//				logger.debug('Task: ' + task.name)
+//
+//				Matcher match = Matcher.lastMatcher
+//				String abiType = match[0][1].toLowerCase()
+//				String mode = match[0][2].toLowerCase()
+//
+//				// This is not a normal build - these are external files that hardly ever change.
+//				// The only way this stuff is even going to check if it needs to rebuild is to look at the shared libs.
+//				// (It's really expensive to check up-to-date properly, and 99.9% of the time it doesn't change.}
+//				if (file("${buildDir}/intermediates/binaries/${mode}/lib/arm64-v8a/libffmpeg.so").exists()) {
+//					logger.info('Shared lib found: ' + "${buildDir}/intermediates/binaries/${mode}/lib/arm64-v8a/libffmpeg.so")
+//					task.enabled = false;
+//				} else {
+//					logger.info('Shared lib not found: ' + "${buildDir}/intermediates/binaries/${mode}/lib/arm64-v8a/libffmpeg.so")
+//					task.dependsOn setupSourceSetRefs
+//					task.dependsOn createConfigureTask(abiType, mode)
+//					task.dependsOn createSetupSourcesTask(abiType, mode, libBinaries)
+//				}
+//			}
+//		}
+	}
+}
+
+import org.apache.tools.ant.types.Commandline
+import org.eclipse.cdt.core.dom.ast.IASTPreprocessorMacroDefinition;
+import org.eclipse.cdt.core.dom.ast.IASTPreprocessorStatement
+import org.eclipse.cdt.core.dom.ast.IASTTranslationUnit
+import org.eclipse.cdt.core.dom.ast.gnu.cpp.GPPLanguage
+import org.eclipse.cdt.core.parser.*
+
+public class AutoToolsPlugin implements Plugin<Project> {
+
+	// I need access to project to figure out where NDK is.
+	// This is effectively a global - I will search for a different way to do this.
+	// (Gradle docs and examples are thin - and Android Studio experimental plugin docs are essentially non-existant.)
+	// BTW, my advice for anyone who wants to understand the experimental plugin:
+	// get the source version of the release JAR from bintray and unpack it.
+	static Project pluginProject;
+
+	@Override
+	public void apply(Project project) {
+		project.getPluginManager().apply(NativeComponentModelPlugin.class);
+		pluginProject = project;
+	}
+
+	// Alter the build config and JNI source set so that they accept assembly language file extensions.
+	static public class AutoToolsRuleSource extends RuleSource {
+
+		private final static org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger('FileExtensionSourceRule');
+
+		public AutoToolsRuleSource() {
+		}
+
+		@Mutate
+		void alterFileExtensions(@Path("nativeBuildConfig") com.android.build.gradle.managed.NativeBuildConfig config) {
+			logger.info("************************************************************************");
+			logger.info("Extend build config:");
+			config.cFileExtensions.addAll(["S", "s", "asm"]);
+			config.cFileExtensions.each { ext ->
+				logger.info("Extension: " + ext);
+			}
+		}
+
+		@Mutate
+		void alterFileExtensions(@Path("android.sources.main.jni") com.android.build.gradle.model.NativeSourceSet nativeSourceSet1) {
+			logger.info("************************************************************************");
+			logger.info("Extend build source set:");
+			nativeSourceSet1.getcFilter().include("**/*.S")
+			nativeSourceSet1.getcFilter().include("**/*.asm")
+			logger.info("Includes: " + nativeSourceSet1.getcFilter().getIncludes());
+		}
+
+		@Mutate
+		void alterFileExtensions(@Each org.gradle.language.c.tasks.CCompile task, @Path("binaries") org.gradle.platform.base.BinaryContainer binaries) {
+			logger.info("************************************************************************");
+			logger.info("Extend task source: " + task.getName());
+			if (task.getName() =~ /compileFfmpeg(.*)(Release|Debug)SharedLibraryFfmpeg.*(Release|Debug)SharedLibraryMainC/) {
+
+				logger.debug("************************************************************************")
+				logger.debug('Task: ' + task.name)
+
+				Matcher match = Matcher.lastMatcher
+				String abiType = match[0][1].toLowerCase()
+				String mode = match[0][2].toLowerCase()
+
+				logger.debug('ABI Type: ' + abiType + " Mode: " + mode);
+
+				// This is not a normal build - these are external files that hardly ever change.
+				// The only way this stuff is even going to check if it needs to rebuild is to look at the shared libs.
+				// (It's really expensive to check up-to-date properly, and 99.9% of the time it doesn't change.}
+				File shareLibPath = new File("" + task.getProject().getBuildDir() + "/intermediates/binaries/" + mode + "/lib/arm64-v8a/libffmpeg.so");
+				if (shareLibPath.exists()) {
+					logger.info('Shared lib found: ' + shareLibPath);
+					task.enabled = false;
+				} else {
+					logger.info('Shared lib not found: ' + shareLibPath);
+					task.dependsOn createConfigureTask(task.getProject().getTasks(), abiType, mode);
+					task.dependsOn createSetupSourcesTask(task.getProject().getTasks(), abiType, mode, binaries);
+				}
+			}
+		}
+
+		private Task createConfigureTask(TaskContainer tasks, String abiType, String mode) {
+			logger.info("************************************************************************")
+			logger.info("Create config task: " + abiType)
+			Task task = tasks.create("configure_${abiType}_${mode}", Task) {
+				String setupBuildDir = "../../ffmpeg/build_" + abiType
+				inputs.file("../../ffmpeg/RELEASE")
+				inputs.property("CONFIGURE_FLAGS", System.getProperty("CONFIGURE_FLAGS"))
+				outputs.file("${setupBuildDir}/config.h")
+				doLast {
+					logger.info("************************************************************************")
+					logger.info("Configure - Architecture: " + abiType)
+
+					String extraCFlags = System.getProperty("CONFIG_CFLAGS_" + abiType.toUpperCase()) ?: ""
+
+					String MOD_CONFIGURE_FLAGS = pluginProject.getProperties().get("CONFIGURE_FLAGS");
+					logger.info("Configure flags: " + MOD_CONFIGURE_FLAGS)
+					MOD_CONFIGURE_FLAGS = MOD_CONFIGURE_FLAGS.replaceAll("PREBUILT", AutoToolsPlugin.getPrebuiltDir(abiType));
+					MOD_CONFIGURE_FLAGS = MOD_CONFIGURE_FLAGS.replaceAll("PLATFORM", getPlatformDir(abiType));
+					MOD_CONFIGURE_FLAGS = MOD_CONFIGURE_FLAGS.replaceAll("EXTRA_CFLAGS", extraCFlags);
+					MOD_CONFIGURE_FLAGS = MOD_CONFIGURE_FLAGS.replaceAll("ARCH", getToolchainPrefix(abiType));
+					MOD_CONFIGURE_FLAGS = MOD_CONFIGURE_FLAGS.replaceAll("ABI", getConfigArch(abiType));
+
+					pluginProject.exec {
+						commandLine "mkdir", "-p", "${setupBuildDir}"
+					}
+					pluginProject.exec {
+						workingDir "${setupBuildDir}"
+						commandLine "../configure"
+						List<String> argStr = Commandline.translateCommandline(MOD_CONFIGURE_FLAGS)
+						setArgs(argStr)
+						logger.info("cmd: " + commandLine)
+					}
+					pluginProject.exec {
+						// We have to make ffversion.h
+						workingDir "${setupBuildDir}"
+						commandLine "make", "libavutil/ffversion.h"
+					}
+					logger.info("************************************************************************")
+				}
+			}
+			return task;
+		}
+
+		private Task createSetupSourcesTask(TaskContainer tasks, String abiType, String mode, BinaryContainer binaries) {
+			logger.info("************************************************************************")
+			logger.info("Create source setup task: " + abiType)
+			Task task = tasks.create("setup_${abiType}_${mode}", Task) {
+				doLast {
+					logger.info("************************************************************************")
+					logger.info("Setup compiler sources: " + abiType)
+					String libraryName = "ffmpeg" + abiType.capitalize() + mode.capitalize() + "SharedLibrary"
+					logger.info("Library: " + libraryName)
+					def sourceSet = binaries.get(libraryName).sources.mainC
+					if (sourceSet != null) {
+						setPropsFromConfigH(abiType)
+						// Zero out the includes so that we only use the set from the gradle.properties file.
+						Set<String> cFileSet = new HashSet<String>();
+
+						def sourceAbiType = abiType
+						if (abiType.equals('x86_64')) {
+							sourceAbiType = 'x86'
+						}
+						extractSourcesFromMakefile(cFileSet, "libavcodec", "Makefile")
+						//extractSourcesFromMakefile(cFileSet, "libavcodec/${getConfigArch(sourceAbiType)}", "Makefile")
+						extractSourcesFromMakefile(cFileSet, "libavutil", "Makefile")
+						//extractSourcesFromMakefile(cFileSet, "libavutil/${getConfigArch(sourceAbiType)}", "Makefile")
+						extractSourcesFromMakefile(cFileSet, "libswresample", "Makefile")
+						//extractSourcesFromMakefile(cFileSet, "libswresample/${getConfigArch(sourceAbiType)}", "Makefile")
+						extractSourcesFromMakefile(cFileSet, "libswscale", "Makefile")
+						if (!(abiType =~ /mips/)) {
+							//extractSourcesFromMakefile(cFileSet, "libswscale/${getConfigArch(sourceAbiType)}", "Makefile")
+						}
+
+						// Add the set members to the SourceSet includes.
+						cFileSet.each { path ->
+							File filePath = new File("../ffmpeg/build_${abiType}/${path}");
+							if (!filePath.exists()) {
+								// If the file doesn't exist, it might be an assembly (.S, .asm)
+								logger.debug("Not found: ../ffmpeg/build_${abiType}/${path}")
+								path = path.replaceAll(/\.c/, '.S')
+								filePath = new File("../ffmpeg/build_${abiType}/${path}");
+								if (!filePath.exists()) {
+									logger.debug("Not found: ../ffmpeg/build_${abiType}/${path}")
+									path = path.replaceAll(/\.S/, '.asm')
+								}
+							}
+
+							if ((path.contains("src/libavcodec/log2_tab.c"))
+									|| (path.contains("src/libavformat/log2_tab.c"))
+									|| (path.contains("src/libswresample/log2_tab.c"))
+									|| (path.contains("src/libswscale/log2_tab.c"))
+									|| (path.contains("src/libavcodec/reverse.c"))) {
+
+							} else {
+								logger.info("Add: " + path)
+								sourceSet.source.include "${path}"
+							}
+						}
+						sourceSet.source.srcDir "../../ffmpeg/build_" + abiType
+//			inputs.property "SOURCE_COUNT", cFileSet.size()
+					}
+				}
+			}
+			return task;
+		}
+
+		private void extractSourcesFromMakefile(Set<String> cFileSet, String path, String makefileName) {
+			File makefile = new File("../ffmpeg/${path}/${makefileName}")
+			String multiLine
+			def regex = /\\$/
+			makefile.getText('UTF-8').eachLine { line ->
+				multiLine += line.replaceAll(regex, '').trim() + " "
+				if (!(line =~ regex)) {
+					if (multiLine =~ /\.o/) {
+						List<String> tokens = multiLine.split(/[+]*=/)
+						if (tokens.size() > 1) {
+							def files = null
+							if (tokens[0] =~ /OBJS\-\$\((.*)\)/) {
+								if (System.getProperty(Matcher.lastMatcher[0][1]).equals("1")) {
+									logger.debug("Property set: " + tokens[0]) + " add:" + tokens[1]
+									files = tokens[1]
+								} else {
+									logger.debug("Property not set: " + tokens[0]) + " skip:" + tokens[1]
+								}
+							} else if (tokens[0] =~ /OBJS/) {
+								files = tokens[1]
+							}
+							if (files != null) {
+								files.tokenize(' ').each { file ->
+									file = file.replaceAll(/\.o/, '.c').trim()
+									if (file =~ /\/(.+\.c)/) {
+										file = Matcher.lastMatcher[0][1]
+									}
+									logger.debug("Extract: " + file)
+									cFileSet.add("src/${path}/${file}")
+								}
+							}
+						}
+					}
+					multiLine = ""
+				}
+			}
+		}
+
+		private void setPropsFromConfigH(String abiType) {
+			logger.info("************************************************************************")
+			logger.info("Config.h grok begin")
+
+			File configFile = new File("../ffmpeg/build_${abiType}/config.h");
+			if (!configFile.exists()) {
+				logger.info("File: ../ffmpeg/build_${abiType}/config.h does not exist")
+			} else {
+				FileContent fileContent = FileContent.createForExternalFileLocation("../ffmpeg/build_${abiType}/config.h")
+				Map definedSymbols = new HashMap();
+				String[] includePaths = new String[0];
+				IScannerInfo info = new ScannerInfo(definedSymbols, includePaths);
+				IParserLogService log = new DefaultLogService();
+				int opts = 8;
+				IncludeFileContentProvider emptyIncludes = IncludeFileContentProvider.getEmptyFilesProvider();
+
+				IASTTranslationUnit translationUnit = GPPLanguage.getDefault().getASTTranslationUnit(fileContent, info, emptyIncludes, null, opts, log);
+				IASTPreprocessorStatement[] preprocessorStatements = translationUnit.getAllPreprocessorStatements();
+				preprocessorStatements.findAll { it instanceof IASTPreprocessorMacroDefinition }.each { IASTPreprocessorMacroDefinition macro ->
+					if (macro.getExpansion().equals("0") || macro.getExpansion().equals("1")) {
+						logger.debug("Set system property name: " + macro.getName() + " expansion: " + macro.getExpansion())
+						System.setProperty(macro.getName().toString(), macro.getExpansion())
+					}
+				}
+			}
+			logger.info("Config.h grok end")
+			logger.info("************************************************************************")
+		}
+
+		// Static helper methods to compute various NDK paths.
+		// Hey Google (Android NDK plugin folk), all of these directory definitions should be available from your plugin!
+		// The plugin and NDK already know this stuff - just expose it to us.
+	}
+
+	static private String getNdkDir() {
+		if (System.env.ANDROID_NDK_ROOT != null)
+			return System.env.ANDROID_NDK_ROOT
+
+		Properties properties = new Properties()
+		properties.load(pluginProject.rootProject.file('local.properties').newDataInputStream())
+		String ndkdir = properties.getProperty('ndk.dir', null)
+		if (ndkdir == null)
+			throw new GradleException("""\
+                NDK location not found.
+                Define location with ndk.dir in the local.properties file
+                or with an ANDROID_NDK_ROOT environment variable.""")
+
+		return ndkdir
+	}
+
+	static private String getToolchainName(String abi) {
+		switch (abi) {
+			case ~/^armeabi.*/:
+				return "arm-linux-androideabi"
+			case ~/^arm64.*/:
+				return "aarch64-linux-android"
+			case "mips":
+				return "mipsel-linux-android"
+			case "mips64":
+				return "mips64el-linux-android"
+			case "x86":
+				return "x86"
+			case "x86_64":
+				return "x86_64"
+			default:
+				throw new GradleException("Unsupported ABI: '${abi}'")
+		}
+	}
+
+	static private String getPlatformName(String abi) {
+		switch (abi) {
+			case ~/^armeabi.*/:
+				return "arch-arm"
+			case ~/^arm64.*/:
+				return "arch-arm64"
+			case "mips":
+				return "arch-mips"
+			case "mips64":
+				return "arch-mips64"
+			case "x86":
+				return "arch-x86"
+			case "x86_64":
+				return "arch-x86_64"
+			default:
+				throw new GradleException("Unsupported ABI: '${abi}'")
+		}
+	}
+
+	static private String getConfigArch(String abi) {
+		switch (abi) {
+			case ~/^armeabi.*/:
+				return "arm"
+			case ~/^arm64.*/:
+				return "aarch64"
+			case "mips":
+				return "mips"
+			case "mips64":
+				return "mips64"
+			case "x86":
+				return "x86"
+			case "x86_64":
+				return "x86_64"
+			default:
+				throw new GradleException("Unsupported ABI: '${abi}'")
+		}
+	}
+
+	static private String getToolchainPrefix(String abi) {
+		switch (abi) {
+			case ~/^armeabi.*/:
+				return "arm-linux-androideabi"
+			case ~/^arm64.*/:
+				return "aarch64-linux-android"
+			case "mips":
+				return "mipsel-linux-android"
+			case "mips64":
+				return "mips64el-linux-android"
+			case "x86":
+				return "i686-linux-android"
+			case "x86_64":
+				return "x86_64-linux-android"
+			default:
+				throw new GradleException("Unsupported ABI: '${abi}'")
+		}
+	}
+
+	static private String getHostOS() {
+		if (org.gradle.internal.os.OperatingSystem.current().isLinux())
+			return "linux"
+		if (org.gradle.internal.os.OperatingSystem.current().isMacOsX())
+			return "darwin"
+		if (org.gradle.internal.os.OperatingSystem.current().isWindows())
+			return "windows"
+		throw new GradleException("Unsupported host OS")
+	}
+
+	static private String getHostArch() {
+		String arch = System.getProperty("os.arch")
+		switch (arch) {
+			case ["x86_64", "amd64"]:
+				return "x86_64"
+			case ~/^i[3456]86/:
+			case "x86":
+				return "x86"
+			default:
+				throw new GradleException("Can't detect host's CPU architecture: '${arch}'")
+		}
+	}
+
+	static private String getHostTag() {
+		String tag = getHostOS()
+		String arch = getHostArch()
+		if (tag != "windows" || arch != "x86")
+			tag += "-${arch}"
+		return tag
+	}
+
+	static private String getPrebuiltDir(String abi) {
+		String ndk = getNdkDir()
+		String toolchainName = getToolchainName(abi)
+		String toolchainPrefix = getToolchainPrefix(abi)
+		String hostTag = getHostTag()
+		String prebuiltDir = "${ndk}/toolchains/${toolchainName}-4.9/prebuilt/${hostTag}"
+		return prebuiltDir
+	}
+
+	static private String getPlatformDir(abi) {
+		String ndk = getNdkDir()
+		String platformName = getPlatformName(abi)
+		String platformDir = "${ndk}/platforms/android-23/${platformName}"
+		return platformDir
+	}
+}
+
+apply plugin: AutoToolsPlugin
+
+dependencies {
+	//compile fileTree(dir: 'lib', include: ['*.jar', '*.so'])
+	compile 'com.android.support:appcompat-v7:24.1.1'
+	compile 'org.apache.ant:ant:1.8.0'
+	compile 'org.slf4j:slf4j-api:1.7.21'
+	compile 'org.slf4j:slf4j-simple:1.7.21'
+}
+
+buildscript {
+	dependencies {
+		classpath files('build.lib/org.eclipse.cdt.core_6.0.0.201606062011.jar')
+		classpath files('build.lib/org.eclipse.equinox.common_3.8.0.v20160509-1230.jar')
+		classpath files('build.lib/org.eclipse.core.resources_3.11.0.v20160503-1608.jar')
+		classpath files('build.lib/org.eclipse.core.runtime_3.12.0.v20160606-1342.jar')
+		classpath files('build.lib/org.eclipse.core.jobs_3.8.0.v20160509-0411.jar')
+		classpath files('build.lib/org.eclipse.core.jobs_3.8.0.v20160509-0411.jar')
+		classpath files('build.lib/org.eclipse.core.contenttype_3.5.100.v20160418-1621.jar')
+	}
+}

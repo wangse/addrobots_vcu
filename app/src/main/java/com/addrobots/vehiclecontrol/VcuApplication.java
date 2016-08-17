@@ -38,17 +38,49 @@ import android.util.Log;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 
-public class VcuApplication extends Application {
+import java.util.List;
 
-	static {
-		System.loadLibrary("opencv_java3");
-	}
+public class VcuApplication extends Application {
 
 	private static final String TAG = "VcuApplication";
 	private UsbService.UsbServiceBinder usbServiceBinder;
 	private ServiceConnection usbServiceConnection;
 	private UsbService usbService;
 	boolean usbServiceIsBound = false;
+
+	public VcuApplication() {
+	}
+
+	@Override
+	protected void attachBaseContext(Context base) {
+		super.attachBaseContext(base);
+
+//		FirebaseApp firebaseApp = FirebaseApp.getInstance(FirebaseApp.DEFAULT_APP_NAME);
+//		if (firebaseApp != null) {
+//			List<FirebaseApp> list = FirebaseApp.getApps(this);
+//			list.remove(firebaseApp);
+//			list = FirebaseApp.getApps(this);
+//			if (list.contains(firebaseApp)) {
+//
+//			}
+//			options = firebaseApp.getOptions();
+//			if (options.getApiKey() != null) {
+//				Log.d(TAG, "apikey: " + options.getApiKey().toString());
+//				Log.d(TAG, "appid: " + options.getApplicationId().toString());
+//				Log.d(TAG, "db: " + options.getDatabaseUrl().toString());
+//				Log.d(TAG, "gcm: " + options.getGcmSenderId().toString());
+//				Log.d(TAG, "bucket: " + options.getStorageBucket().toString());
+//			}
+//		}
+//		FirebaseOptions options = new FirebaseOptions.Builder()
+//				.setDatabaseUrl("https://addrobots.firebaseio.com")
+//				.setApiKey("AIzaSyAjc99u3_RdL53ESiIcW5AlFELwBkdgC0w")
+//				.setApplicationId("1:185039441716:android:c8526563e19cfafa")
+//				.setGcmSenderId("185039441716")
+//				.setStorageBucket("addrobots.appspot.com")
+//				.build();
+//		FirebaseApp.initializeApp(base, options, FirebaseApp.DEFAULT_APP_NAME);
+	}
 
 	@Override
 	public void onConfigurationChanged(Configuration newConfig) {
@@ -58,28 +90,6 @@ public class VcuApplication extends Application {
 	@Override
 	public void onCreate() {
 		super.onCreate();
-		FirebaseApp firebaseApp;
-		FirebaseOptions options;
-		if (!FirebaseApp.getApps(this).isEmpty()) {
-			firebaseApp = FirebaseApp.getInstance(FirebaseApp.DEFAULT_APP_NAME);
-			options = firebaseApp.getOptions();
-			if (options.getApiKey() != null) {
-				Log.d(TAG, "apikey: " + options.getApiKey().toString());
-				Log.d(TAG, "appid: " + options.getApplicationId().toString());
-				Log.d(TAG, "db: " + options.getDatabaseUrl().toString());
-				Log.d(TAG, "gcm: " + options.getGcmSenderId().toString());
-				Log.d(TAG, "bucket: " + options.getStorageBucket().toString());
-			}
-		}
-		options = new FirebaseOptions.Builder()
-				.setDatabaseUrl("https://addrobots.firebaseio.com")
-				.setApiKey("AIzaSyAjc99u3_RdL53ESiIcW5AlFELwBkdgC0w")
-				.setApplicationId("1:185039441716:android:c8526563e19cfafa")
-				.setGcmSenderId("185039441716")
-				.setStorageBucket("addrobots.appspot.com")
-				.build();
-		FirebaseApp.initializeApp(this, options, FirebaseApp.DEFAULT_APP_NAME);
-
 		startServices();
 	}
 
@@ -94,11 +104,10 @@ public class VcuApplication extends Application {
 		stopServices();
 	}
 
-
 	private void startServices() {
 		startService(new Intent(this.getApplicationContext(), PidService.class));
 		startService(new Intent(this.getApplicationContext(), UsbService.class));
-//		startService(new Intent(this.getApplicationContext(), OpticalFlowService.class));
+		startService(new Intent(this.getApplicationContext(), OpticalFlowService.class));
 //		startServices(new Intent(this.getApplicationContext(), FirebaseMsgService.class));
 
 		// We have to bind the USB service to *something* so that we can get it from a broadcastreceiver (later).

@@ -29,9 +29,14 @@
 package com.addrobots.vehiclecontrol;
 
 import android.app.IntentService;
+import android.content.Context;
 import android.content.Intent;
 import android.os.IBinder;
+import android.util.Log;
 
+import org.opencv.android.BaseLoaderCallback;
+import org.opencv.android.LoaderCallbackInterface;
+import org.opencv.android.OpenCVLoader;
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.core.Point;
@@ -45,9 +50,17 @@ import java.util.List;
 
 public class OpticalFlowService extends IntentService {
 
+	private static final String TAG = "OpticalFLowService";
+
+	static {
+		System.loadLibrary("opencv_java3");
+		System.loadLibrary("ffmpeg");
+	}
+
 	public static final int FRONT_CAMERA = 0;
 	public static final int BACK_CAMERA = 1;
 
+	private BaseLoaderCallback loaderCallback;
 	private VideoCapture videoCapture;
 	private Size previewSize;
 	private Mat currentFrame;
@@ -58,12 +71,64 @@ public class OpticalFlowService extends IntentService {
 	public OpticalFlowService() {
 		this("Optical Flow");
 	}
+
 	public OpticalFlowService(String threadName) {
 		super(threadName);
 		matchResult = new Mat();
 		currentFrame = new Mat();
-		videoCapture = new VideoCapture(Videoio.CV_CAP_ANDROID);
-		videoCapture.open(Videoio.CV_CAP_ANDROID);
+		loaderCallback = new LoaderCallback(this);
+	}
+
+	private void startCameraThread() {
+		Thread cameraThread = new Thread("Camera Thread") {
+			@Override
+			public void run() {
+				while (true) {
+//					if (videoCapture.isOpened()) {
+					if ((videoCapture.grab()) && (videoCapture.retrieve(currentFrame))) {
+						if (prevFrame != null) {
+							Imgproc.matchTemplate(currentFrame, prevFrame, matchResult, Imgproc.TM_CCORR_NORMED);
+							Core.MinMaxLocResult match = Core.minMaxLoc(matchResult);
+							if ((prevMinLoc != null) && (match.minLoc != null)) {
+								double moveX = prevMinLoc.x - match.minLoc.x;
+								double moveY = prevMinLoc.y - match.minLoc.y;
+								prevMinLoc = match.minLoc;
+							}
+						}
+						if (currentFrame.cols() > 0) {
+							int xPixels = currentFrame.cols() / 2;
+							int yPixels = currentFrame.rows() / 2;
+							Rect rect = new Rect(xPixels - 20, yPixels - 20, xPixels + 20, yPixels + 20);
+							prevFrame = new Mat(currentFrame, rect);
+						}
+					}
+					try {
+						Thread.sleep(10);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+//				    }
+				}
+			}
+		};
+
+		cameraThread.start();
+	}
+
+	@Override
+	public void onCreate() {
+		super.onCreate();
+		Log.d(TAG, "SysLibPath: " + System.getProperty("java.library.path"));
+		Log.d(TAG, "SysLibPath: " + this.getApplicationContext().getApplicationInfo().nativeLibraryDir);
+		if (!OpenCVLoader.initDebug()) {
+			Log.d(TAG, "Internal OpenCV library not found. Using OpenCV Manager for initialization");
+			OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_0_0, this, loaderCallback);
+		} else {
+			Log.d(TAG, "OpenCV library found inside package. Using it!");
+			loaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
+		}
+//		videoCapture = new VideoCapture(0);//Videoio.CV_CAP_ANDROID_BACK + 1);
+//		videoCapture.open(0+1);//Videoio.CV_CAP_ANDROID_BACK + 1);
 
 //		List<Size> previewSizes = videoCapture.
 //		double smallestPreviewSize = 1280 * 720; // We should be smaller than this...
@@ -76,33 +141,6 @@ public class OpticalFlowService extends IntentService {
 		startCameraThread();
 	}
 
-	private void startCameraThread() {
-		Runnable cameraThread = new Runnable() {
-			@Override
-			public void run() {
-				while (videoCapture.isOpened()) {
-					videoCapture.retrieve(currentFrame, Videoio.CV_CAP_MODE_GRAY);
-					if (prevFrame != null) {
-						Imgproc.matchTemplate(currentFrame, prevFrame, matchResult, Imgproc.TM_CCORR_NORMED);
-						Core.MinMaxLocResult match = Core.minMaxLoc(matchResult);
-						if ((prevMinLoc != null) && (match.minLoc != null)) {
-							double moveX = prevMinLoc.x - match.minLoc.x;
-							double moveY = prevMinLoc.y - match.minLoc.y;
-							prevMinLoc = match.minLoc;
-						}
-					}
-					if (currentFrame.cols() > 0) {
-						int xPixels = currentFrame.cols() / 2;
-						int yPixels = currentFrame.rows() / 2;
-						Rect rect = new Rect(xPixels - 20, yPixels - 20, xPixels + 20, yPixels + 20);
-						prevFrame = new Mat(currentFrame, rect);
-					}
-				}
-			}
-		};
-		cameraThread.run();
-	}
-
 	@Override
 	public IBinder onBind(Intent intent) {
 		// TODO: Return the communication channel to the service.
@@ -113,4 +151,29 @@ public class OpticalFlowService extends IntentService {
 	protected void onHandleIntent(Intent intent) {
 
 	}
+
+	private class LoaderCallback extends BaseLoaderCallback {
+
+		public LoaderCallback(Context context) {
+			super(context);
+		}
+
+		@Override
+		public void onManagerConnected(int status) {
+			switch (status) {
+				case LoaderCallbackInterface.SUCCESS: {
+					Log.i(TAG, "OpenCV loaded successfully");
+					videoCapture = new VideoCapture();//Videoio.CV_CAP_ANDROID);
+					//videoCapture.open(0+1);//Videoio.CV_CAP_ANDROID_BACK + 1);
+				}
+				break;
+				default: {
+					super.onManagerConnected(status);
+				}
+				break;
+			}
+		}
+	}
+
+	;
 }

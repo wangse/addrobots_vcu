@@ -39,8 +39,8 @@
 
 		<TextView
 			android:id="@+id/usb_info_textview"
-			android:layout_width="match_parent"
-			android:layout_height="match_parent"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
 			android:text="@string/usb_info_textview"/>
 
 	</ScrollView>
@@ -56,8 +56,8 @@
 
 		<TextView
 			android:id="@+id/sensor_x_textview"
-			android:layout_width="match_parent"
-			android:layout_height="match_parent"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
 			android:text="@string/sensor_x_textview"/>
 	</ScrollView>
 	<ScrollView
@@ -71,8 +71,8 @@
 
 		<TextView
 			android:id="@+id/sensor_y_textview"
-			android:layout_width="match_parent"
-			android:layout_height="match_parent"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
 			android:text="@string/sensor_y_textview"/>
 	</ScrollView>
 	<ScrollView
@@ -86,8 +86,8 @@
 
 		<TextView
 			android:id="@+id/sensor_q_textview"
-			android:layout_width="match_parent"
-			android:layout_height="match_parent"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
 			android:text="@string/sensor_q_textview"/>
 
 	</ScrollView>
