@@ -31,15 +31,12 @@ apply plugin: 'com.android.model.library'
 // This is the "old" way before I used the more modern Plugin/RuleSource.
 //apply from: 'autotools.gradle'
 
-import java.util.regex.Matcher
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
-
 // Looking for a way to not have to do this in the plugin.
 // Ideally, there'd be an @Path('project'). Who knows - there's no documentation for the @Path objects.
 AutoToolsPlugin.pluginProject = project
 
-		String[] arm64_includes = ["-I${projectDir}/../../ffmpeg/build_arm64-v8a/", "-I${projectDir}/../../ffmpeg/"]
+// It's not possible to do this in the model. Don't know why. Perhaps support for this will come in a later version of the plugin.
+String[] arm64_includes = ["-I${projectDir}/../../ffmpeg/build_arm64-v8a/", "-I${projectDir}/../../ffmpeg/"]
 String[] arm64_libs = ["-Wl,-rpath-link=${AutoToolsPlugin.getPlatformDir('arm64-v8a')}/usr/lib", "-L${AutoToolsPlugin.getPlatformDir('arm64-v8a')}/usr/lib", "-lm", "-lz"]
 
 String[] arm7_includes = ["-I${projectDir}/../../ffmpeg/build_armeabi-v7a/", "-I${projectDir}/../../ffmpeg/"]
@@ -142,32 +139,20 @@ model {
 				}
 			}
 		}
-//		externalNativeBuild{
-//			ndkBuild{
-//				path "src/main/jni/Android.mk"
-//			}
-//		}
-//		defaultConfig {
-//			externalNativeBuild {
-//				ndkBuild {
-////					targets "assembly"
-////					arguments "NDK_APPLICATION_MK:=Application.mk"
-////				cFlags "-DTEST_C_FLAG1", "-DTEST_C_FLAG2"
-////				cppFlags "-DTEST_CPP_FLAG2", "-DTEST_CPP_FLAG2"
-//					abiFilters.addAll(['arm64-v8a', 'armeabi-v7a', 'armeabi', 'x86', 'x86_64'])
-//				}
-//			}
-//		}
 	}
 	tasks {
-		setupSourceSetRefs(Task) {
-			logger.info("************************************************************************")
-			logger.info('Setup Source Refs')
-			libBinaries = $.binaries
-			nativeSourceSet = $.android.sources.main.jni.getcFilter()
-			logger.debug("Main source filter: " + nativeSourceSet.getIncludes())
-			logger.debug("Native build: config: " + $.nativeBuildConfig.cFileExtensions)
-		}
+//
+// This is the old way, now deprecated.
+// I figure this will show up in the Google search results and help some poor soul still stuck in the Tasks-based Gradle model.
+//
+//		setupSourceSetRefs(Task) {
+//			logger.info("************************************************************************")
+//			logger.info('Setup Source Refs')
+//			libBinaries = $.binaries
+//			nativeSourceSet = $.android.sources.main.jni.getcFilter()
+//			logger.debug("Main source filter: " + nativeSourceSet.getIncludes())
+//			logger.debug("Native build: config: " + $.nativeBuildConfig.cFileExtensions)
+//		}
 //		project.tasks.all { task ->
 //			if (task.name =~ /compileFfmpeg(.*)(Release|Debug)SharedLibraryFfmpeg.*(Release|Debug)SharedLibraryMainC/) {
 //
@@ -201,6 +186,9 @@ import org.eclipse.cdt.core.dom.ast.IASTPreprocessorStatement
 import org.eclipse.cdt.core.dom.ast.IASTTranslationUnit
 import org.eclipse.cdt.core.dom.ast.gnu.cpp.GPPLanguage
 import org.eclipse.cdt.core.parser.*
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+import java.util.regex.Matcher
 
 public class AutoToolsPlugin implements Plugin<Project> {
 
