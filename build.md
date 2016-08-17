@@ -1,7 +1,7 @@
 # How to build
 
 This is a pretty much a standard Android Studio project with two modules: opencv and ffmpeg. 
-Because we use the Android Studio's (today experimental) NDK native plugin, you will need to use AS 2.2+ since it's the only platform that supports this plugin (as of today).
+Because we use Android Studio's (today experimental) NDK native plugin, you will need to use AS 2.2+ since it's the only platform that supports this plugin (as of today).
 
 ## OpenCV
 
