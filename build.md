@@ -11,9 +11,8 @@ I followed the instuctions to install an OpenCV module into an Android project: 
 
 OpenCV doesn't work fully without FFmpeg, but to generate FFmpeg shared libraries on Android for all ABI types is (was) painful. 
 I created a Gradle Plugin/RuleSource that works with Android Studio's (today experimental) NDK native plugin.
-Building this project now requires FFmpeg since it automagically builds the sharedlibs for release/debug on all ABI types.
-All you need to do is `git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg` into a directory that's at the same level as this project.
-Generally, this is ~/AndroidStudioProjects.
+Now this project automagically builds the FFmpeg sharedlibs for release/debug on all ABI types directly from an unmodified git clone of FFmpeg.
+All you need to do is `git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg` into a directory that's at the same level as this project. Generally, this location is ~/AndroidStudioProjects.
 
 There are two flavors of the gradle.build for FFmpeg:
 
