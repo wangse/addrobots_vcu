@@ -17,7 +17,7 @@ All you need to do is `git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg` into 
 There are two flavors of the gradle.build for FFmpeg:
 
 ### Original (now deprecated) 
-This version that scans the model's task list, and modifies the task structures to check autotools config and include the right files during the build. 
+This version scans the project model's task list, and modifies the task structures to check autotools config and include the right files during the build. 
 Most of this code is in autotools.gradle. At some point I'll delete is all, but I wanted a record to hit Google search since it solves some interesting problems
 that you might have in a task-based Gradle build. These kinds of builds will be around until everyone finally moves to RuleSource builds.
 
