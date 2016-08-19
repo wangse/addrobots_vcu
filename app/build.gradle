@@ -18,11 +18,29 @@ model {
 		}
 		buildTypes {
 			release {
+				ndk {
+					debuggable true
+				}
 				minifyEnabled = false
-				//proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+				proguardFiles.add(file('proguard-rules.txt'))
+			}
+			debug {
+				ndk {
+					debuggable true
+				}
+				minifyEnabled = false
 				proguardFiles.add(file('proguard-rules.txt'))
 			}
 		}
+//		sources {
+//			main {
+//				jni {
+//					dependencies {
+//						project ":openCVLibrary310" buildType "release" linkage "shared"
+//					}
+//				}
+//			}
+//		}
 	}
 	android.lintOptions {
 		lintConfig file("lint.xml")

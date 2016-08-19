@@ -163,7 +163,7 @@ public class OpticalFlowService extends IntentService {
 			switch (status) {
 				case LoaderCallbackInterface.SUCCESS: {
 					Log.i(TAG, "OpenCV loaded successfully");
-					videoCapture = new VideoCapture();//Videoio.CV_CAP_ANDROID);
+					videoCapture = new VideoCapture(Videoio.CV_CAP_FFMPEG);
 					//videoCapture.open(0+1);//Videoio.CV_CAP_ANDROID_BACK + 1);
 				}
 				break;

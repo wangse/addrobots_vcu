@@ -51,8 +51,8 @@ String[] x86_libs = ["-Wl,-rpath-link=${AutoToolsPlugin.getPlatformDir('x86')}/u
 String[] x86_64_includes = ["-I${projectDir}/../../ffmpeg/build_X86_64/", "-I${projectDir}/../../ffmpeg/"]
 String[] x86_64_libs = ["-Wl,-rpath-link=${AutoToolsPlugin.getPlatformDir('x86_64')}/usr/lib", "-L${AutoToolsPlugin.getPlatformDir('x86_64')}/usr/lib", "-lm", "-lz"]
 
-def libBinaries
-def nativeSourceSet
+//def libBinaries
+//def nativeSourceSet
 
 model {
 	android {
@@ -140,7 +140,7 @@ model {
 			}
 		}
 	}
-	tasks {
+//	tasks {
 //
 // This is the old way, now deprecated.
 // I figure this will show up in the Google search results and help some poor soul still stuck in the Tasks-based Gradle model.
@@ -177,7 +177,7 @@ model {
 //				}
 //			}
 //		}
-	}
+//	}
 }
 
 import org.apache.tools.ant.types.Commandline

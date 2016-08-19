@@ -7,13 +7,92 @@ model {
 
 		defaultConfig {
 			minSdkVersion.apiLevel = 21
-			targetSdkVersion.apiLevel =  24
+			targetSdkVersion.apiLevel = 24
+
+//			externalNativeBuild {
+//				cmake {
+//					targets "target1", "target2"
+//					arguments "-DANDROID_TOOLCHAIN=clang"
+//					cFlags "-DTEST_C_FLAG1", "-DTEST_C_FLAG2"
+//					cppFlags "-DTEST_CPP_FLAG2", "-DTEST_CPP_FLAG2"
+//					abiFilters "armeabi-v7a", "armeabi"
+//				}
+//			}
 		}
 		buildTypes {
 			release {
+				ndk {
+					debuggable true
+				}
 				minifyEnabled = false
-				//proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.txt'
 				proguardFiles.add(file('proguard-rules.txt'))
+			}
+			debug {
+				ndk {
+					debuggable true
+				}
+				minifyEnabled = false
+				proguardFiles.add(file('proguard-rules.txt'))
+			}
+		}
+//		ndk {
+//			moduleName = "openCVLibrary310"
+//			stl "gnustl_shared"
+//			CFlags.addAll(["-x", "c++", "-std=c++11", "-fexceptions"])
+//			abiFilters.addAll(['arm64-v8a', 'armeabi-v7a', 'armeabi', 'x86', 'x86_64'])
+//		}
+//		abis {
+//			create('arm64-v8a') {
+//			}
+//			create('armeabi-v7a') {
+//			}
+//			create('armeabi') {
+//			}
+//			create('x86') {
+//			}
+//			create('x86_64') {
+//			}
+//		}
+		sources {
+			main {
+//				jni {
+//					source {
+//						srcDir "../../OpenCV-android-sdk/sdk/native/jni/include/"
+//						include "../../OpenCV-android-sdk/sdk/native/jni/include/opencv/cv.hpp"
+//						include "opencv2/**/*.hpp"
+//						include "opencv2/videoio.hpp"
+//					}
+//					exportedHeaders {
+//						srcDir "../../OpenCV-android-sdk/sdk/native/jni/include/"
+//						include "opencv/cv.hpp"
+//						include "opencv2/**/*.hpp"
+//					}
+//				}
+				jniLibs {
+					dependencies {
+						library "opencv_java3"
+					}
+				}
+			}
+//		}
+//		externalNativeBuild {
+//			cmake {
+//				path "../../opencv/CMakeLists.txt"
+//			}
+		}
+	}
+	repositories {
+		libs(PrebuiltLibraries) {
+			// Configure one pre-built lib: shared
+			opencv_java3 {
+				// Inform Android Studio where header file dir for this lib
+				headers.srcDir "/Users/jeffw/AndroidStudioProjects/OpenCV-android-sdk/sdk/native/jni/include/"
+				headers.srcDir "/Users/jeffw/AndroidStudioProjects/OpenCV-android-sdk/sdk/native/jni/include/opencv"
+				headers.srcDir "/Users/jeffw/AndroidStudioProjects/OpenCV-android-sdk/sdk/native/jni/include/opencv2"
+				// Inform Android Studio where lib is -- each ABI should have a lib file
+				binaries.withType(SharedLibraryBinary) {
+					sharedLibraryFile = file("/Users/jeffw/AndroidStudioProjects/OpenCV-android-sdk/sdk/native/libs/${targetPlatform.getName()}/libopencv_java3.so")
+				}
 			}
 		}
 	}
@@ -21,3 +100,34 @@ model {
 		lintConfig file("lint.xml")
 	}
 }
+
+public class AutoToolsRuleSource extends RuleSource {
+
+	private final static org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger('FileExtensionSourceRule');
+
+	public AutoToolsRuleSource() {
+	}
+
+	@Mutate
+	void alterFileExtensions(@Path("nativeBuildConfig") com.android.build.gradle.managed.NativeBuildConfig config) {
+		logger.info("************************************************************************");
+		logger.info("Extend build config:");
+		config.cFileExtensions.addAll(["S", "s", "asm", "hpp"]);
+		config.cFileExtensions.each { ext ->
+			logger.info("Extension: " + ext);
+		}
+	}
+
+	@Mutate
+	void alterFileExtensions(@Path("android.sources.main.jni") com.android.build.gradle.model.NativeSourceSet nativeSourceSet1) {
+		logger.info("************************************************************************");
+		logger.info("Extend build source set:");
+		nativeSourceSet1.getcFilter().include("**/*.S")
+		nativeSourceSet1.getcFilter().include("**/*.asm")
+		nativeSourceSet1.getcFilter().include("**/*.hpp")
+		logger.info("Includes: " + nativeSourceSet1.getcFilter().getIncludes());
+	}
+
+}
+
+apply plugin: AutoToolsRuleSource
