@@ -1,2 +1,2 @@
 include ':app', ':ffmpeg'
-include ':openCVLibrary310'
+include ':app', ':openCVLibrary310'

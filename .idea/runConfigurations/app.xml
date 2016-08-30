@@ -24,8 +24,6 @@
       <option name="USE_JAVA_AWARE_DEBUGGER" value="false" />
       <option name="WORKING_DIR" value="" />
       <option name="TARGET_LOGGING_CHANNELS" value="lldb process:gdb-remote packets" />
-      <symbol_dirs symbol_path="$PROJECT_DIR$/../opencv/platforms/android/build/OpenCV-android-sdk/sdk/native/libs/arm64-v8a" />
-      <symbol_dirs symbol_path="$PROJECT_DIR$/../opencv/platforms/android/build/OpenCV-android-sdk/sdk/native/libs/armeabi-v7a" />
     </Hybrid>
     <Java />
     <Native>

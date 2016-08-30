@@ -1,54 +1,81 @@
-apply plugin: 'com.android.model.application'
+apply plugin: 'com.android.application'
 //apply plugin: 'com.google.protobuf'
 
-model {
-	android {
-		compileSdkVersion = 24
-		buildToolsVersion = '24.0.1'
+//model {
+android {
+	compileSdkVersion = 24
+	buildToolsVersion = '24.0.1'
 
-		defaultConfig {
-			applicationId = "com.addrobots.vehiclecontrol"
-			minSdkVersion.apiLevel = 21
-			targetSdkVersion.apiLevel = 24
-			versionCode = 1
-			versionName = "1.0"
-			multiDexEnabled = true
+	defaultConfig {
+		applicationId = "com.addrobots.vehiclecontrol"
+		minSdkVersion 21
+		targetSdkVersion 24
+		versionCode = 1
+		versionName = "1.0"
+		multiDexEnabled = true
 
-			testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
-		}
-		buildTypes {
-			release {
-				ndk {
-					debuggable true
-				}
-				minifyEnabled = false
-				proguardFiles.add(file('proguard-rules.txt'))
-			}
-			debug {
-				ndk {
-					debuggable true
-				}
-				minifyEnabled = false
-				proguardFiles.add(file('proguard-rules.txt'))
-			}
-		}
-//		sources {
-//			main {
-//				jni {
-//					dependencies {
-//						project ":openCVLibrary310" buildType "release" linkage "shared"
-//					}
-//				}
+		testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+
+//		ndk {
+//			abiFilters "arm64-v8a", "armeabi-v7a", "x86_64"
+//		}
+//		externalNativeBuild {
+//			cmake {
+//				arguments "-DANDROID_TOOLCHAIN=gcc", "-DANDROID_STL=gnustl_static", "-DANDROID_NATIVE_API_LEVEL=21", "-DANDROID_STL_FORCE_FEATURES=ON", "-DWITH_OPENCL=OFF", "-DWITH_CUDA=OFF", "-DWITH_IPP=OFF", "-DBUILD_EXAMPLES=OFF", "-DBUILD_TESTS=OFF", "-DBUILD_PERF_TESTS=OFF", "-DBUILD_DOCS=OFF", "-DBUILD_ANDROID_EXAMPLES=OFF", "-DINSTALL_ANDROID_EXAMPLES=OFF"
+//				cFlags "-v", "-O0", "-g", "-DDEBUG", "-D_DEBUG"
+//				cppFlags "-v", "-O0", "-g", "-DDEBUG", "-D_DEBUG"
+//				abiFilters "arm64-v8a", "armeabi-v7a", "x86_64"
 //			}
 //		}
 	}
-	android.lintOptions {
-		lintConfig file("lint.xml")
+//	sourceSets {
+//		main {
+//			// let gradle pack the shared library into apk
+//			jniLibs {
+//				srcDirs = ["./build/intermediates/cmake/debug/lib"]
+//			}
+//		}
+//	}
+	buildTypes {
+		debug {
+			debuggable true
+			jniDebuggable true
+		}
+		release {
+			minifyEnabled false
+			proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+		}
 	}
-	android.testOptions {
-		unitTests.returnDefaultValues = true
-	}
+//	externalNativeBuild {
+//		cmake {
+//			path "../../opencv/CMakeLists.txt"
+//		}
+//	}
 }
+android.lintOptions {
+	lintConfig file("lint.xml")
+}
+android.testOptions {
+	unitTests.returnDefaultValues = true
+}
+//}
+
+//repositories {
+//	libs(PrebuiltLibraries) {
+//		// Configure one pre-built lib: shared
+//		opencv_java3 {
+//			// Inform Android Studio where header file dir for this lib
+//			headers.srcDir "../opencv/modules/videoio/src"
+//			headers.srcDir "../opencv/modules/videoio/include"
+////			headers.include "opencv2/**/*.hpp"
+////			headers.include "opencv2/videoio.hpp"
+//			// Inform Android Studio where lib is -- each ABI should have a lib file
+//			binaries.withType(SharedLibraryBinary) {
+//				sharedLibraryFile = file("app/build/intermediates/cmake/debug/lib/${targetPlatform.getName()}/libopencv_java3.so")
+//			}
+//		}
+//	}
+//}
 
 dependencies {
 	compile 'com.android.support:appcompat-v7:24.1.1'
@@ -84,7 +111,9 @@ dependencies {
 	compile 'io.grpc:grpc-protobuf-nano:0.9.0'
 
 	// OpenCV
-	compile project(':openCVLibrary310')
+	releaseCompile project(path: ':openCVLibrary310', configuration: 'release')
+	debugCompile project(path: ':openCVLibrary310', configuration: 'debug')
+	//compile project(':openCVLibrary310')
 	compile project(':ffmpeg')
 
 	// Libs
